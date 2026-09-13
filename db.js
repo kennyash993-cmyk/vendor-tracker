@@ -14,12 +14,12 @@ function connect() {
           'MONGODB_URI is not set. Add your MongoDB Atlas connection string to .env (see .env.example).'
         );
       }
-      const client = new MongoClient(uri, {
-  tls: true,
-  tlsAllowInvalidCertificates: false
-});
 
-});
+      const client = new MongoClient(uri, {
+        tls: true,
+        tlsAllowInvalidCertificates: false
+      });
+
       await client.connect();
       const database = client.db(process.env.MONGODB_DB_NAME || 'vendor_tracker');
       const workOrdersCol = database.collection('workOrders');
@@ -42,23 +42,10 @@ function connect() {
       return { client, database, workOrdersCol, settingsCol };
     })();
   }
+
   return connectPromise;
 }
 
-function newId() {
-  return crypto.randomUUID();
-}
-
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function daysBetween(dateStrA, dateStrB) {
-  const a = new Date(dateStrA);
-  const b = new Date(dateStrB);
-  const ms = b.setHours(0, 0, 0, 0) - a.setHours(0, 0, 0, 0);
-  return Math.floor(ms / (1000 * 60 * 60 * 24));
-}
 
 // Find the most recent signature event of a given type ('out' or 'in') that covers this component.
 function findSignatureFor(signatures, componentId, type) {
