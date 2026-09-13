@@ -14,7 +14,10 @@ function connect() {
           'MONGODB_URI is not set. Add your MongoDB Atlas connection string to .env (see .env.example).'
         );
       }
-      const client = new MongoClient(uri);
+      const client = new MongoClient(uri, {
+  tls: true,
+  minTLSVersion: "TLSv1.3"
+});
       await client.connect();
       const database = client.db(process.env.MONGODB_DB_NAME || 'vendor_tracker');
       const workOrdersCol = database.collection('workOrders');
