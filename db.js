@@ -21,6 +21,7 @@ function connect() {
       });
 
       await client.connect();
+
       const database = client.db(process.env.MONGODB_DB_NAME || 'vendor_tracker');
       const workOrdersCol = database.collection('workOrders');
       const settingsCol = database.collection('settings');
@@ -45,6 +46,11 @@ function connect() {
 
   return connectPromise;
 }
+
+function newId() {
+  return crypto.randomBytes(16).toString('hex');
+}
+
 
 
 // Find the most recent signature event of a given type ('out' or 'in') that covers this component.
