@@ -16,7 +16,9 @@ function connect() {
       }
       const client = new MongoClient(uri, {
   tls: true,
-  minTLSVersion: "TLSv1.3"
+  tlsAllowInvalidCertificates: false
+});
+
 });
       await client.connect();
       const database = client.db(process.env.MONGODB_DB_NAME || 'vendor_tracker');
