@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Dashboard - Vendor Work Tracker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<nav>
+  <a class="brand" href="/">Vendor Tracker</a>
+  <div class="nav-links" id="navLinks">
+  <a href="/" class="active">Dashboard</a>
+  <a href="/all-work.html">All Work</a>
+  <a href="/new.html">+ New Work Order</a>
+  <a href="/settings.html">Settings</a>
+  </div>
+  <button class="nav-toggle" id="navToggle" aria-label="Menu">&#9776;</button>
+  <div class="spacer"></div>
+  <button class="logout" id="logoutBtn">Log out</button>
+</nav>
+<main>
+  <h1>Dashboard</h1>
+
+  <div class="grid-3" id="statCards">
+    <div class="card stat"><div class="num" id="statOutCount">-</div><div class="label">Components Out</div></div>
+    <div class="card stat"><div class="num" id="statPendingCount">-</div><div class="label">Awaiting Pickup</div></div>
+    <div class="card stat"><div class="num" id="statOverdue">-</div><div class="label">Over Alert Threshold</div></div>
+  </div>
+
+  <div class="card" id="pendingSection">
+    <h2 style="margin-top:0;">Awaiting Pickup (Ready to Sign Out)</h2>
+    <div id="pendingList"></div>
+  </div>
+
+  <div class="filters card">
+    <div>
+      <label>Vendor</label>
+      <input id="fVendor" placeholder="Filter by vendor" />
+    </div>
+    <div>
+      <label>Sort by</label>
+      <select id="fSort">
+        <option value="daysDesc">Days out (longest first)</option>
+        <option value="daysAsc">Days out (shortest first)</option>
+        <option value="vendor">Vendor name</option>
+      </select>
+    </div>
+    <div>
+      <button class="secondary" id="refreshBtn">Refresh</button>
+    </div>
+  </div>
+
+  <h2>Currently Out at Vendors</h2>
+  <div id="list"></div>
+</main>
+
+<script src="/js/app.js"></script>
+<script src="/js/signature.js"></script>
+<script>
+let threshold = 7;
+
+async function load() {
+  const settings = await apiGet('/api/settings');
+  threshold = settings.alertThresholdDays || 7;
+
+  await loadPending();
+  await loadOut();
+}
+
+async function loadPending() {
+  const workOrders = await apiGet('/api/work-orders?onlyPending=true');
+  let rows = [];
+  workOrders.forEach((wo) => wo.components.forEach((c) => rows.push({ wo, c })));
+
+  document.getElementById('statPendingCount').textContent = rows.length;
+  const el = document.getElementById('pendingList');
+
+  if (rows.length === 0) {
+    el.innerHTML = '<p class="empty-state">Nothing is waiting for pickup right now.</p>';
+    return;
+  }
+
+  el.innerHTML = `
+    <table>
+      <thead><tr><th>Vendor</th><th>Work Order / PO</th><th>Component</th><th></th></tr></thead>
+      <tbody>
+        ${rows.map((r) => `
+          <tr>
+            <td>${escapeHtml(r.wo.vendorName) || '\u2014'}</td>
+            <td><a class="link" href="/detail.html?id=${r.wo.id}">${escapeHtml(r.wo.woNumber) || '(no WO#)'} / ${escapeHtml(r.wo.poNumber) || '(no PO#)'}</a></td>
+            <td>${escapeHtml(r.c.description)}</td>
+            <td><button class="small primary" onclick="quickSignOut('${r.wo.id}','${r.c.id}','${escapeHtml(r.c.description).replace(/'/g, "\\'")}')">Sign Out</button></td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+async function loadOut() {
+  const workOrders = await apiGet('/api/work-orders?onlyOut=true');
+
+  let rows = [];
+  workOrders.forEach((wo) => wo.components.forEach((c) => rows.push({ wo, c })));
+
+  const vendorFilter = document.getElementById('fVendor').value.trim().toLowerCase();
+  if (vendorFilter) rows = rows.filter((r) => r.wo.vendorName.toLowerCase().includes(vendorFilter));
+
+  const sort = document.getElementById('fSort').value;
+  if (sort === 'daysDesc') rows.sort((a, b) => b.c.daysOut - a.c.daysOut);
+  if (sort === 'daysAsc') rows.sort((a, b) => a.c.daysOut - b.c.daysOut);
+  if (sort === 'vendor') rows.sort((a, b) => a.wo.vendorName.localeCompare(b.wo.vendorName));
+
+  document.getElementById('statOutCount').textContent = rows.length;
+  document.getElementById('statOverdue').textContent = rows.filter((r) => r.c.daysOut >= threshold).length;
+
+  const listEl = document.getElementById('list');
+  if (rows.length === 0) {
+    listEl.innerHTML = '<div class="card empty-state">Nothing is currently out. New work orders will show up here.</div>';
+    return;
+  }
+
+  listEl.innerHTML = `
+    <div class="card" style="padding:0;overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>Vendor</th>
+            <th>Work Order / PO</th>
+            <th>Component</th>
+            <th>Sent</th>
+            <th>Expected Back</th>
+            <th>Days Out</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map((r) => `
+            <tr>
+              <td>${escapeHtml(r.wo.vendorName) || '\u2014'}</td>
+              <td><a class="link" href="/detail.html?id=${r.wo.id}">${escapeHtml(r.wo.woNumber) || '(no WO#)'} / ${escapeHtml(r.wo.poNumber) || '(no PO#)'}</a></td>
+              <td>${escapeHtml(r.c.description)}</td>
+              <td>${fmtDate(r.c.sentDate)}</td>
+              <td>${r.c.expectedReturnDate ? fmtDate(r.c.expectedReturnDate) : '\u2014'} ${r.c.isOverdueByExpected ? '<span class="badge red">past due</span>' : ''}</td>
+              <td><span class="badge ${daysOutBadgeClass(r.c.daysOut, threshold)}">${r.c.daysOut} day${r.c.daysOut === 1 ? '' : 's'}</span></td>
+              <td><button class="small secondary" onclick="quickSignIn('${r.wo.id}','${r.c.id}','${escapeHtml(r.c.description).replace(/'/g, "\\'")}')">Sign In</button></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function quickSignOut(woId, compId, description) {
+  openSignatureModal({
+    title: 'Sign Out to Vendor',
+    actionLabel: 'Confirm Pickup Signature',
+    items: [description],
+    onConfirm: async ({ signerName, signatureImage }) => {
+      await apiPost(`/api/work-orders/${woId}/sign-out`, { componentIds: [compId], signerName, signatureImage });
+      toast('Signed out to vendor \u2014 receipt emailed');
+      load();
+    }
+  });
+}
+
+function quickSignIn(woId, compId, description) {
+  openSignatureModal({
+    title: 'Sign In From Vendor',
+    actionLabel: 'Confirm Return Signature',
+    items: [description],
+    onConfirm: async ({ signerName, signatureImage }) => {
+      await apiPost(`/api/work-orders/${woId}/sign-in`, { componentIds: [compId], signerName, signatureImage });
+      toast('Signed in as returned');
+      load();
+    }
+  });
+}
+
+document.getElementById('fVendor').addEventListener('input', loadOut);
+document.getElementById('fSort').addEventListener('change', loadOut);
+document.getElementById('refreshBtn').addEventListener('click', load);
+
+load();
+</script>
+</body>
+</html>

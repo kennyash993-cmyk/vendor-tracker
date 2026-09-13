@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Log in - Vendor Work Tracker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<div class="login-wrap">
+  <h1 style="margin-bottom:20px;">Vendor Work Tracker</h1>
+  <div class="card">
+    <label for="password">Password</label>
+    <input type="password" id="password" placeholder="Enter app password" />
+    <button class="primary" style="width:100%;" id="loginBtn">Log In</button>
+    <p id="err" style="color:#dc2626;font-size:13px;margin-top:10px;display:none;">Incorrect password.</p>
+  </div>
+</div>
+<script>
+async function doLogin() {
+  const password = document.getElementById('password').value;
+  const res = await fetch('/api/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password })
+  });
+  if (res.ok) {
+    window.location.href = '/';
+  } else {
+    document.getElementById('err').style.display = 'block';
+  }
+}
+document.getElementById('loginBtn').addEventListener('click', doLogin);
+document.getElementById('password').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') doLogin();
+});
+</script>
+</body>
+</html>

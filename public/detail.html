@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Work Order - Vendor Work Tracker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<nav>
+  <a class="brand" href="/">Vendor Tracker</a>
+  <div class="nav-links" id="navLinks">
+  <a href="/">Dashboard</a>
+  <a href="/all-work.html">All Work</a>
+  <a href="/new.html">+ New Work Order</a>
+  <a href="/settings.html">Settings</a>
+  </div>
+  <button class="nav-toggle" id="navToggle" aria-label="Menu">&#9776;</button>
+  <div class="spacer"></div>
+  <button class="logout" id="logoutBtn">Log out</button>
+</nav>
+<main id="main">Loading...</main>
+
+<script src="/js/app.js"></script>
+<script src="/js/signature.js"></script>
+<script>
+const id = new URLSearchParams(window.location.search).get('id');
+const justCreated = new URLSearchParams(window.location.search).get('justCreated') === '1';
+let threshold = 7;
+let currentWo = null;
+
+async function load() {
+  const settings = await apiGet('/api/settings');
+  threshold = settings.alertThresholdDays || 7;
+
+  const wo = await apiGet('/api/work-orders/' + id);
+  currentWo = wo;
+
+  const statusBadge = wo.status === 'open'
+    ? '<span class="badge yellow">Open</span>'
+    : wo.status === 'pending'
+      ? '<span class="badge gray">Awaiting Pickup</span>'
+      : '<span class="badge green">Closed</span>';
+
+  const pendingCount = wo.components.filter((c) => c.status === 'pending').length;
+
+  document.getElementById('main').innerHTML = `
+    <h1>WO ${escapeHtml(wo.woNumber) || '(none)'} &middot; PO ${escapeHtml(wo.poNumber) || '(none)'}</h1>
+
+    ${justCreated && pendingCount > 0 ? `
+      <div class="banner">
+        <div>This work order was just created. ${pendingCount} component(s) are waiting for the vendor to pick them up.</div>
+        <button class="primary small" id="quickSignOutAllBtn">Sign Out All Pending Now</button>
+      </div>
+    ` : ''}
+
+    <div class="card">
+      <div class="grid-3">
+        <div>
+          <label>Work Order #</label>
+          <input id="woNumber" value="${escapeHtml(wo.woNumber)}" />
+        </div>
+        <div>
+          <label>PO #</label>
+          <input id="poNumber" value="${escapeHtml(wo.poNumber)}" />
+        </div>
+        <div>
+          <label>Vendor Name</label>
+          <input id="vendorName" value="${escapeHtml(wo.vendorName)}" />
+        </div>
+      </div>
+      <label>Notes</label>
+      <textarea id="notes">${escapeHtml(wo.notes)}</textarea>
+      <button class="secondary" id="saveWoBtn">Save Details</button>
+      <button class="danger" id="deleteWoBtn" style="float:right;">Delete Work Order</button>
+    </div>
+
+    <div class="card">
+      <div class="component-row-header" style="margin-bottom:10px;">
+        <h2 style="margin:0;">Components (${wo.components.length})</h2>
+        ${statusBadge}
+      </div>
+
+      <div class="select-bar">
+        <button class="secondary small" id="selectPendingBtn">Select All Awaiting Pickup</button>
+        <button class="secondary small" id="selectOutBtn">Select All Currently Out</button>
+        <button class="secondary small" id="clearSelectBtn">Clear Selection</button>
+        <div class="spacer"></div>
+        <button class="primary small" id="signOutBtn">Sign Out Selected (<span id="countOut">0</span>)</button>
+        <button class="primary small" id="signInBtn">Sign In Selected (<span id="countIn">0</span>)</button>
+      </div>
+
+      <div id="components">
+        ${wo.components.map((c) => componentHtml(c)).join('') || '<p class="empty-state">No components yet.</p>'}
+      </div>
+      <button class="secondary" id="addCompBtn">+ Add Another Component</button>
+    </div>
+
+    ${wo.signatures.length ? `
+      <div class="card">
+        <h2 style="margin-top:0;">Signature Log</h2>
+        <table>
+          <thead><tr><th>When</th><th>Type</th><th>Signed By</th><th>Items Covered</th><th>Signature</th><th>Receipt</th></tr></thead>
+          <tbody>
+            ${wo.signatures.slice().reverse().map((ev) => `
+              <tr>
+                <td>${new Date(ev.timestamp).toLocaleString()}</td>
+                <td>${ev.type === 'out' ? '<span class="badge yellow">Signed Out</span>' : '<span class="badge green">Signed In</span>'}</td>
+                <td>${escapeHtml(ev.signerName)}</td>
+                <td>${ev.componentIds.length} item(s)</td>
+                <td>${ev.signatureImage ? `<img class="sig-thumb" src="${ev.signatureImage}" />` : '<span class="sig-info">name only</span>'}</td>
+                <td>
+                  <a class="link" href="/api/work-orders/${id}/signatures/${ev.id}/pdf" target="_blank">View / Print</a><br>
+                  <button class="small secondary" style="margin-top:4px;" onclick="emailReceipt('${ev.id}')">Email Receipt</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    ` : ''}
+  `;
+
+  document.getElementById('saveWoBtn').addEventListener('click', saveWo);
+  document.getElementById('deleteWoBtn').addEventListener('click', deleteWo);
+  document.getElementById('addCompBtn').addEventListener('click', addComponent);
+  document.getElementById('selectPendingBtn').addEventListener('click', () => selectByStatus('pending'));
+  document.getElementById('selectOutBtn').addEventListener('click', () => selectByStatus('out'));
+  document.getElementById('clearSelectBtn').addEventListener('click', clearSelection);
+  document.getElementById('signOutBtn').addEventListener('click', doSignOut);
+  document.getElementById('signInBtn').addEventListener('click', doSignIn);
+
+  const quickBtn = document.getElementById('quickSignOutAllBtn');
+  if (quickBtn) quickBtn.addEventListener('click', () => { selectByStatus('pending'); doSignOut(); });
+
+  document.querySelectorAll('.comp-select').forEach((cb) => cb.addEventListener('change', updateCounts));
+  updateCounts();
+}
+
+function componentHtml(c) {
+  const statusBadge = c.status === 'out'
+    ? `<span class="badge ${daysOutBadgeClass(c.daysOut, threshold)}">Out ${c.daysOut} day${c.daysOut === 1 ? '' : 's'}</span>`
+    : c.status === 'returned'
+      ? `<span class="badge green">Returned ${fmtDate(c.returnedDate)}</span>`
+      : `<span class="badge gray">Awaiting Pickup</span>`;
+
+  const pickupInfo = c.pickupSignature
+    ? `<div class="sig-info">Signed out by <strong>${escapeHtml(c.pickupSignature.signerName)}</strong> on ${new Date(c.pickupSignature.timestamp).toLocaleString()}${c.pickupSignature.signatureImage ? `<br><img class="sig-thumb" src="${c.pickupSignature.signatureImage}" />` : ''}</div>`
+    : '';
+  const returnInfo = c.returnSignature
+    ? `<div class="sig-info">Signed in by <strong>${escapeHtml(c.returnSignature.signerName)}</strong> on ${new Date(c.returnSignature.timestamp).toLocaleString()}${c.returnSignature.signatureImage ? `<br><img class="sig-thumb" src="${c.returnSignature.signatureImage}" />` : ''}</div>`
+    : '';
+
+  return `
+    <div class="component-row" data-comp-id="${c.id}" data-status="${c.status}">
+      <div class="component-row-header">
+        <label style="display:flex;align-items:center;gap:8px;margin:0;font-weight:normal;">
+          <input type="checkbox" class="comp-select" data-comp-id="${c.id}" data-status="${c.status}" style="width:auto;margin:0;" />
+          ${statusBadge}
+        </label>
+        <button class="small danger" onclick="removeComponent('${c.id}')">Remove</button>
+      </div>
+      <label>Description</label>
+      <textarea class="c-desc">${escapeHtml(c.description)}</textarea>
+      <div class="grid-2">
+        <div>
+          <label>Date Sent (set automatically at sign-out, editable)</label>
+          <input type="date" class="c-sent" value="${c.sentDate || ''}" />
+        </div>
+        <div>
+          <label>Expected Return</label>
+          <input type="date" class="c-expected" value="${c.expectedReturnDate || ''}" />
+        </div>
+      </div>
+      <label>Notes</label>
+      <textarea class="c-notes">${escapeHtml(c.notes)}</textarea>
+      <button class="small secondary" onclick="saveComponent('${c.id}')">Save Component</button>
+      ${pickupInfo}
+      ${returnInfo}
+    </div>
+  `;
+}
+
+function updateCounts() {
+  const checked = Array.from(document.querySelectorAll('.comp-select:checked'));
+  const outCount = checked.filter((cb) => cb.dataset.status !== 'out').length;
+  const inCount = checked.filter((cb) => cb.dataset.status === 'out').length;
+  document.getElementById('countOut').textContent = outCount;
+  document.getElementById('countIn').textContent = inCount;
+  document.getElementById('signOutBtn').style.opacity = outCount ? '1' : '.5';
+  document.getElementById('signInBtn').style.opacity = inCount ? '1' : '.5';
+}
+
+function selectByStatus(status) {
+  document.querySelectorAll('.comp-select').forEach((cb) => {
+    cb.checked = cb.dataset.status === status;
+  });
+  updateCounts();
+}
+
+function clearSelection() {
+  document.querySelectorAll('.comp-select').forEach((cb) => { cb.checked = false; });
+  updateCounts();
+}
+
+function descriptionFor(compId) {
+  const c = currentWo.components.find((cc) => cc.id === compId);
+  return c ? c.description || '(no description)' : '(unknown)';
+}
+
+function doSignOut() {
+  const ids = Array.from(document.querySelectorAll('.comp-select:checked'))
+    .filter((cb) => cb.dataset.status !== 'out')
+    .map((cb) => cb.dataset.compId);
+  if (ids.length === 0) { toast('Select at least one component awaiting pickup or return.'); return; }
+
+  openSignatureModal({
+    title: 'Sign Out to Vendor',
+    actionLabel: 'Confirm Pickup Signature',
+    items: ids.map(descriptionFor),
+    onConfirm: async ({ signerName, signatureImage }) => {
+      await apiPost(`/api/work-orders/${id}/sign-out`, { componentIds: ids, signerName, signatureImage });
+      toast('Signed out to vendor \u2014 receipt emailed');
+      load();
+    }
+  });
+}
+
+function doSignIn() {
+  const ids = Array.from(document.querySelectorAll('.comp-select:checked'))
+    .filter((cb) => cb.dataset.status === 'out')
+    .map((cb) => cb.dataset.compId);
+  if (ids.length === 0) { toast('Select at least one component that is currently out.'); return; }
+
+  openSignatureModal({
+    title: 'Sign In From Vendor',
+    actionLabel: 'Confirm Return Signature',
+    items: ids.map(descriptionFor),
+    onConfirm: async ({ signerName, signatureImage }) => {
+      await apiPost(`/api/work-orders/${id}/sign-in`, { componentIds: ids, signerName, signatureImage });
+      toast('Signed in as returned');
+      load();
+    }
+  });
+}
+
+async function saveWo() {
+  await apiPut('/api/work-orders/' + id, {
+    woNumber: document.getElementById('woNumber').value.trim(),
+    poNumber: document.getElementById('poNumber').value.trim(),
+    vendorName: document.getElementById('vendorName').value.trim(),
+    notes: document.getElementById('notes').value.trim()
+  });
+  toast('Saved');
+  load();
+}
+
+async function deleteWo() {
+  if (!confirm('Delete this entire work order? This cannot be undone.')) return;
+  await apiDelete('/api/work-orders/' + id);
+  window.location.href = '/all-work.html';
+}
+
+async function addComponent() {
+  await apiPost(`/api/work-orders/${id}/components`, { description: '' });
+  load();
+}
+
+function rowFor(compId) {
+  return document.querySelector(`.component-row[data-comp-id="${compId}"]`);
+}
+
+async function saveComponent(compId) {
+  const row = rowFor(compId);
+  await apiPut(`/api/work-orders/${id}/components/${compId}`, {
+    description: row.querySelector('.c-desc').value.trim(),
+    sentDate: row.querySelector('.c-sent').value || null,
+    expectedReturnDate: row.querySelector('.c-expected').value,
+    notes: row.querySelector('.c-notes').value.trim()
+  });
+  toast('Component saved');
+  load();
+}
+
+async function removeComponent(compId) {
+  if (!confirm('Remove this component?')) return;
+  await apiDelete(`/api/work-orders/${id}/components/${compId}`);
+  load();
+}
+
+async function emailReceipt(sigId) {
+  const result = await apiPost(`/api/work-orders/${id}/signatures/${sigId}/email`, {});
+  if (result.sent) {
+    toast('Receipt emailed');
+  } else {
+    toast('Not sent: ' + result.reason);
+  }
+}
+
+load();
+</script>
+</body>
+</html>

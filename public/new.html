@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>New Work Order - Vendor Work Tracker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<nav>
+  <a class="brand" href="/">Vendor Tracker</a>
+  <div class="nav-links" id="navLinks">
+  <a href="/">Dashboard</a>
+  <a href="/all-work.html">All Work</a>
+  <a href="/new.html" class="active">+ New Work Order</a>
+  <a href="/settings.html">Settings</a>
+  </div>
+  <button class="nav-toggle" id="navToggle" aria-label="Menu">&#9776;</button>
+  <div class="spacer"></div>
+  <button class="logout" id="logoutBtn">Log out</button>
+</nav>
+<main>
+  <h1>New Outgoing Work Order</h1>
+
+  <div class="card">
+    <div class="grid-3">
+      <div>
+        <label>Work Order #</label>
+        <input id="woNumber" placeholder="e.g. WO-1042" />
+      </div>
+      <div>
+        <label>PO #</label>
+        <input id="poNumber" placeholder="e.g. PO-8821" />
+      </div>
+      <div>
+        <label>Vendor Name</label>
+        <input id="vendorName" list="vendorList" placeholder="e.g. Acme Plating Co." />
+        <datalist id="vendorList"></datalist>
+      </div>
+    </div>
+    <label>Notes (optional)</label>
+    <textarea id="notes" placeholder="Any general notes about this work order"></textarea>
+  </div>
+
+  <div class="card">
+    <div class="component-row-header" style="margin-bottom:10px;">
+      <h2 style="margin:0;">Components Being Sent Out</h2>
+      <button class="secondary small" id="addRowBtn">+ Add Component</button>
+    </div>
+    <p style="color:#6b7280;font-size:13px;margin-top:-4px;">
+      These will be saved as "awaiting pickup." On the next screen you'll have
+      the vendor sign to confirm they actually took them.
+    </p>
+    <div id="rows"></div>
+  </div>
+
+  <button class="primary" id="saveBtn">Create Work Order</button>
+</main>
+
+<script src="/js/app.js"></script>
+<script>
+let rowCount = 0;
+
+function addRow(prefill) {
+  rowCount++;
+  const id = 'row' + rowCount;
+  const wrap = document.createElement('div');
+  wrap.className = 'component-row';
+  wrap.id = id;
+  wrap.innerHTML = `
+    <div class="component-row-header">
+      <strong>Component ${rowCount}</strong>
+      <button class="danger small" onclick="document.getElementById('${id}').remove()">Remove</button>
+    </div>
+    <label>Description</label>
+    <textarea class="c-desc" placeholder="e.g. Hydraulic cylinder - reseal and pressure test"></textarea>
+    <label>Expected Return (optional)</label>
+    <input type="date" class="c-expected" />
+  `;
+  document.getElementById('rows').appendChild(wrap);
+}
+
+document.getElementById('addRowBtn').addEventListener('click', () => addRow());
+
+async function loadVendors() {
+  const vendors = await apiGet('/api/vendors');
+  document.getElementById('vendorList').innerHTML = vendors.map((v) => `<option value="${escapeHtml(v)}">`).join('');
+}
+
+async function save() {
+  const woNumber = document.getElementById('woNumber').value.trim();
+  const poNumber = document.getElementById('poNumber').value.trim();
+  const vendorName = document.getElementById('vendorName').value.trim();
+  const notes = document.getElementById('notes').value.trim();
+
+  const components = Array.from(document.querySelectorAll('.component-row')).map((row) => ({
+    description: row.querySelector('.c-desc').value.trim(),
+    expectedReturnDate: row.querySelector('.c-expected').value
+  })).filter((c) => c.description);
+
+  if (!vendorName) { toast('Please enter a vendor name'); return; }
+  if (components.length === 0) { toast('Add at least one component'); return; }
+
+  const wo = await apiPost('/api/work-orders', { woNumber, poNumber, vendorName, notes, components });
+  window.location.href = '/detail.html?id=' + wo.id + '&justCreated=1';
+}
+
+document.getElementById('saveBtn').addEventListener('click', save);
+
+loadVendors();
+addRow();
+</script>
+</body>
+</html>

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>All Work - Vendor Work Tracker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<nav>
+  <a class="brand" href="/">Vendor Tracker</a>
+  <div class="nav-links" id="navLinks">
+  <a href="/">Dashboard</a>
+  <a href="/all-work.html" class="active">All Work</a>
+  <a href="/new.html">+ New Work Order</a>
+  <a href="/settings.html">Settings</a>
+  </div>
+  <button class="nav-toggle" id="navToggle" aria-label="Menu">&#9776;</button>
+  <div class="spacer"></div>
+  <button class="logout" id="logoutBtn">Log out</button>
+</nav>
+<main>
+  <h1>All Work Orders</h1>
+
+  <div class="filters card">
+    <div>
+      <label>Search</label>
+      <input id="fQ" placeholder="WO#, PO#, vendor, description..." />
+    </div>
+    <div>
+      <label>Status</label>
+      <select id="fStatus">
+        <option value="all">All</option>
+        <option value="pending">Awaiting Pickup</option>
+        <option value="open">Open (something out)</option>
+        <option value="closed">Closed (all returned)</option>
+      </select>
+    </div>
+    <div>
+      <label>Vendor</label>
+      <input id="fVendor" list="vendorList" placeholder="Any vendor" />
+      <datalist id="vendorList"></datalist>
+    </div>
+    <div>
+      <label>Sent on/after</label>
+      <input type="date" id="fDateFrom" />
+    </div>
+    <div>
+      <label>Sent on/before</label>
+      <input type="date" id="fDateTo" />
+    </div>
+    <div>
+      <button class="secondary" id="clearBtn">Clear Filters</button>
+    </div>
+  </div>
+
+  <div id="list"></div>
+</main>
+
+<script src="/js/app.js"></script>
+<script>
+let threshold = 7;
+
+async function loadVendors() {
+  const vendors = await apiGet('/api/vendors');
+  document.getElementById('vendorList').innerHTML = vendors.map((v) => `<option value="${escapeHtml(v)}">`).join('');
+}
+
+function buildQuery() {
+  const params = new URLSearchParams();
+  const q = document.getElementById('fQ').value.trim();
+  const status = document.getElementById('fStatus').value;
+  const vendor = document.getElementById('fVendor').value.trim();
+  const dateFrom = document.getElementById('fDateFrom').value;
+  const dateTo = document.getElementById('fDateTo').value;
+  if (q) params.set('q', q);
+  if (status) params.set('status', status);
+  if (vendor) params.set('vendor', vendor);
+  if (dateFrom) params.set('dateFrom', dateFrom);
+  if (dateTo) params.set('dateTo', dateTo);
+  return params.toString();
+}
+
+async function load() {
+  const settings = await apiGet('/api/settings');
+  threshold = settings.alertThresholdDays || 7;
+
+  const workOrders = await apiGet('/api/work-orders?' + buildQuery());
+  const listEl = document.getElementById('list');
+
+  if (workOrders.length === 0) {
+    listEl.innerHTML = '<div class="card empty-state">No work orders match those filters.</div>';
+    return;
+  }
+
+  listEl.innerHTML = workOrders.map((wo) => `
+    <div class="card">
+      <div class="component-row-header" style="margin-bottom:10px;">
+        <div>
+          <a class="link" style="font-size:16px;" href="/detail.html?id=${wo.id}">
+            WO ${escapeHtml(wo.woNumber) || '(none)'} &middot; PO ${escapeHtml(wo.poNumber) || '(none)'}
+          </a>
+          <div style="color:#6b7280;font-size:13px;">${escapeHtml(wo.vendorName) || 'No vendor set'} &middot; created ${fmtDate(wo.createdAt.slice(0,10))}</div>
+        </div>
+        <span class="badge ${wo.status === 'open' ? 'yellow' : wo.status === 'pending' ? 'gray' : 'green'}">${wo.status === 'open' ? 'Open' : wo.status === 'pending' ? 'Awaiting Pickup' : 'Closed'}</span>
+      </div>
+      <table>
+        <thead><tr><th>Component</th><th>Sent</th><th>Status</th><th>Returned</th></tr></thead>
+        <tbody>
+          ${wo.components.map((c) => `
+            <tr>
+              <td>${escapeHtml(c.description)}</td>
+              <td>${c.sentDate ? fmtDate(c.sentDate) : '\u2014'}</td>
+              <td>${c.status === 'out'
+                ? `<span class="badge ${daysOutBadgeClass(c.daysOut, threshold)}">Out ${c.daysOut}d</span>`
+                : c.status === 'returned'
+                  ? '<span class="badge green">Returned</span>'
+                  : '<span class="badge gray">Awaiting Pickup</span>'}</td>
+              <td>${c.returnedDate ? fmtDate(c.returnedDate) : '\u2014'}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `).join('');
+}
+
+['fQ', 'fVendor', 'fDateFrom', 'fDateTo'].forEach((id) => {
+  document.getElementById(id).addEventListener('input', load);
+});
+document.getElementById('fStatus').addEventListener('change', load);
+document.getElementById('clearBtn').addEventListener('click', () => {
+  ['fQ', 'fVendor', 'fDateFrom', 'fDateTo'].forEach((id) => document.getElementById(id).value = '');
+  document.getElementById('fStatus').value = 'all';
+  load();
+});
+
+loadVendors();
+load();
+</script>
+</body>
+</html>
