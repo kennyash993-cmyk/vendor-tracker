@@ -51,6 +51,17 @@ function newId() {
   return crypto.randomBytes(16).toString('hex');
 }
 
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function daysBetween(start, end) {
+  const s = new Date(start);
+  const e = new Date(end);
+  const diff = e - s;
+  return Math.floor(diff / (1000 * 60 * 60 * 24));
+}
+
 
 
 // Find the most recent signature event of a given type ('out' or 'in') that covers this component.
