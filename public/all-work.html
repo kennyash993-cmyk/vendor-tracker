@@ -93,17 +93,29 @@ async function load() {
     return;
   }
 
-  listEl.innerHTML = workOrders.map((wo) => `
+listEl.innerHTML = workOrders.map((wo) => `
     <div class="card">
-      <div class="component-row-header" style="margin-bottom:10px;">
+      <div class="component-row-header" style="margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
         <div>
           <a class="link" style="font-size:16px;" href="/detail.html?id=${wo.id}">
             WO ${escapeHtml(wo.woNumber) || '(none)'} &middot; PO ${escapeHtml(wo.poNumber) || '(none)'}
           </a>
-          <div style="color:#6b7280;font-size:13px;">${escapeHtml(wo.vendorName) || 'No vendor set'} &middot; created ${fmtDate(wo.createdAt.slice(0,10))}</div>
+          <div style="color:#6b7280;font-size:13px;">
+            ${escapeHtml(wo.vendorName) || 'No vendor set'} &middot; created ${fmtDate(wo.createdAt.slice(0,10))}
+          </div>
         </div>
-        <span class="badge ${wo.status === 'open' ? 'yellow' : wo.status === 'pending' ? 'gray' : 'green'}">${wo.status === 'open' ? 'Open' : wo.status === 'pending' ? 'Awaiting Pickup' : 'Closed'}</span>
+
+        <div style="display:flex; gap:10px; align-items:center;">
+          <span class="badge ${wo.status === 'open' ? 'yellow' : wo.status === 'pending' ? 'gray' : 'green'}">
+            ${wo.status === 'open' ? 'Open' : wo.status === 'pending' ? 'Awaiting Pickup' : 'Closed'}
+          </span>
+
+          <button class="danger small" onclick="deleteWorkOrder('${wo.id}')">
+            Delete
+          </button>
+        </div>
       </div>
+
       <table>
         <thead><tr><th>Component</th><th>Sent</th><th>Status</th><th>Returned</th></tr></thead>
         <tbody>
@@ -125,6 +137,7 @@ async function load() {
   `).join('');
 }
 
+
 ['fQ', 'fVendor', 'fDateFrom', 'fDateTo'].forEach((id) => {
   document.getElementById(id).addEventListener('input', load);
 });
@@ -137,6 +150,19 @@ document.getElementById('clearBtn').addEventListener('click', () => {
 
 loadVendors();
 load();
+async function deleteWorkOrder(id) {
+  if (!confirm('Delete this work order? This cannot be undone.')) return;
+
+  try {
+    await apiDelete(`/api/work-orders/${id}`);
+    toast('Work order deleted');
+    load(); // reload list
+  } catch (err) {
+    console.error(err);
+    toast('Failed to delete work order');
+  }
+}
+
 </script>
 </body>
 </html>
