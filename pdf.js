@@ -53,12 +53,15 @@ function buildReceiptBuffer(wo, event) {
       }
     }
 
-    doc.moveDown(2);
-    doc.fontSize(9).fillColor('#888')
-      .text('Generated automatically by Vendor Work Tracker.', { align: 'center' });
+    // Add space before footer so it sits lower on the page
+doc.moveDown(4);
 
-    doc.end();
+doc.fontSize(9).fillColor('#888')
+  .text('Generated automatically by Vendor Work Tracker.', {
+    align: 'center'
   });
+doc.end();
+});
 }
 
 module.exports = { buildReceiptBuffer };
