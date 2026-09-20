@@ -359,12 +359,23 @@ a.link:hover { text-decoration: underline; }
     max-width: 92%;
     box-sizing: border-box;
   }
-
-  .card {
-    overflow-x: hidden; /* prevents spill-out */
-  }
 }
 
+/* ---------------------------------------------------------
+   MOBILE FIX: Signature Log table horizontal scroll only
+   --------------------------------------------------------- */
+@media (max-width: 600px) {
+  .card h2 + table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+  }
+
+  .card h2 + table::-webkit-scrollbar {
+    height: 0;
+  }
+}
 
 
 
