@@ -380,6 +380,26 @@ a.link:hover { text-decoration: underline; }
     overflow-x: hidden; /* prevents spill-out */
   }
 }
+/* ---------------------------------------------------------
+   MOBILE FIX: Allow signature log to scroll inside modal
+   --------------------------------------------------------- */
+@media (max-width: 600px) {
+  .sig-modal {
+    overflow-x: auto;        /* allow horizontal scroll */
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .sig-items {
+    overflow-x: auto;        /* allow scroll inside the list */
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .sig-items table {
+    min-width: 700px;        /* force content wider than container */
+    display: block;
+  }
+}
+
 
 
 
