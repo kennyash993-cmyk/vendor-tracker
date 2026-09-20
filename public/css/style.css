@@ -333,15 +333,21 @@ a.link:hover { text-decoration: underline; }
   flex-wrap: wrap;
 }
 /* ---------------------------------------------------------
-   MOBILE FIX: Currently Out at Vendors
-   Matches the Pending Section mobile card layout
+   MOBILE FIX: Unified Card Layout for Pending + Out Sections
    --------------------------------------------------------- */
 @media (max-width: 600px) {
 
+  /* Hide table headers */
+  #pendingSection table thead,
   #list table thead {
     display: none;
   }
 
+  /* Convert tables into stacked cards */
+  #pendingSection table,
+  #pendingSection tbody,
+  #pendingSection tr,
+  #pendingSection td,
   #list table,
   #list tbody,
   #list tr,
@@ -350,6 +356,8 @@ a.link:hover { text-decoration: underline; }
     width: 100%;
   }
 
+  /* Card container */
+  #pendingSection tr,
   #list tr {
     margin-bottom: 14px;
     padding: 14px;
@@ -359,7 +367,8 @@ a.link:hover { text-decoration: underline; }
     position: relative;
   }
 
-  /* Checkbox row */
+  /* Checkbox row (first column) */
+  #pendingSection td:first-child,
   #list td:first-child {
     display: flex;
     align-items: center;
@@ -367,7 +376,8 @@ a.link:hover { text-decoration: underline; }
     padding-bottom: 10px;
   }
 
-  /* Bigger checkbox, properly aligned */
+  /* Checkbox styling */
+  #pendingSection .pending-select,
   #list .out-select {
     transform: scale(1.3);
     margin: 0;
@@ -376,13 +386,15 @@ a.link:hover { text-decoration: underline; }
     left: 0;
   }
 
-  /* Full-width Sign In button */
+  /* Full-width buttons */
+  #pendingSection td button.small,
   #list td button.small {
     width: 100%;
     margin-top: 10px;
   }
 
-  /* Vendor / WO / Component spacing */
+  /* Link spacing */
+  #pendingSection .link,
   #list .link {
     display: inline-block;
     margin-top: 4px;
@@ -394,4 +406,5 @@ a.link:hover { text-decoration: underline; }
     display: inline-block;
   }
 }
+
 
