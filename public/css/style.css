@@ -346,23 +346,7 @@ a.link:hover { text-decoration: underline; }
     min-width: 600px; /* forces scroll instead of squishing */
   }
 }
-/* ---------------------------------------------------------
-   MOBILE FIX: Signature Log horizontal scroll
-   --------------------------------------------------------- */
-@media (max-width: 600px) {
-  .sig-items {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
 
-  .sig-items table {
-    min-width: 600px; /* prevents squishing */
-  }
-
-  .sig-items::-webkit-scrollbar {
-    height: 0; /* optional: hide scrollbar */
-  }
-}
 /* ---------------------------------------------------------
    MOBILE FIX: Date inputs stay inside card
    --------------------------------------------------------- */
