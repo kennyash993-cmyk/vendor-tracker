@@ -10,15 +10,16 @@
 <nav>
   <a class="brand" href="/">Vendor Tracker</a>
   <div class="nav-links" id="navLinks">
-  <a href="/" class="active">Dashboard</a>
-  <a href="/all-work.html">All Work</a>
-  <a href="/new.html">+ New Work Order</a>
-  <a href="/settings.html">Settings</a>
+    <a href="/" class="active">Dashboard</a>
+    <a href="/all-work.html">All Work</a>
+    <a href="/new.html">+ New Work Order</a>
+    <a href="/settings.html">Settings</a>
   </div>
   <button class="nav-toggle" id="navToggle" aria-label="Menu">&#9776;</button>
   <div class="spacer"></div>
   <button class="logout" id="logoutBtn">Log out</button>
 </nav>
+
 <main>
   <h1>Dashboard</h1>
 
@@ -30,6 +31,13 @@
 
   <div class="card" id="pendingSection">
     <h2 style="margin-top:0;">Awaiting Pickup (Ready to Sign Out)</h2>
+
+    <div class="select-bar" style="margin-bottom:10px;">
+      <button class="primary small" id="bulkSignOutPendingBtn">
+        Sign Out Selected (<span id="pendingSelectedCount">0</span>)
+      </button>
+    </div>
+
     <div id="pendingList"></div>
   </div>
 
@@ -78,24 +86,119 @@ async function loadPending() {
 
   if (rows.length === 0) {
     el.innerHTML = '<p class="empty-state">Nothing is waiting for pickup right now.</p>';
+    document.getElementById('pendingSelectedCount').textContent = '0';
     return;
   }
 
   el.innerHTML = `
     <table>
-      <thead><tr><th>Vendor</th><th>Work Order / PO</th><th>Component</th><th></th></tr></thead>
+      <thead>
+        <tr>
+          <th></th>
+          <th>Vendor</th>
+          <th>Work Order / PO</th>
+          <th>Component</th>
+          <th></th>
+        </tr>
+      </thead>
       <tbody>
-        ${rows.map((r) => `
-          <tr>
-            <td>${escapeHtml(r.wo.vendorName) || '\u2014'}</td>
-            <td><a class="link" href="/detail.html?id=${r.wo.id}">${escapeHtml(r.wo.woNumber) || '(no WO#)'} / ${escapeHtml(r.wo.poNumber) || '(no PO#)'}</a></td>
-            <td>${escapeHtml(r.c.description)}</td>
-            <td><button class="small primary" onclick="quickSignOut('${r.wo.id}','${r.c.id}','${escapeHtml(r.c.description).replace(/'/g, "\\'")}')">Sign Out</button></td>
-          </tr>
-        `).join('')}
+        ${rows.map((r) => {
+          const safeDesc = JSON.stringify(escapeHtml(r.c.description));
+          return `
+            <tr>
+              <td>
+                <input
+                  type="checkbox"
+                  class="pending-select"
+                  data-wo-id="${r.wo.id}"
+                  data-comp-id="${r.c.id}"
+                  data-desc=${safeDesc}
+                />
+              </td>
+              <td>${escapeHtml(r.wo.vendorName) || '\u2014'}</td>
+              <td>
+                <a class="link" href="/detail.html?id=${r.wo.id}">
+                  ${escapeHtml(r.wo.woNumber) || '(no WO#)'} /
+                  ${escapeHtml(r.wo.poNumber) || '(no PO#)'}
+                </a>
+              </td>
+              <td>${escapeHtml(r.c.description)}</td>
+              <td>
+                <button
+                  class="small primary"
+                  onclick="quickSignOut('${r.wo.id}','${r.c.id}',${safeDesc})"
+                >
+                  Sign Out
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('')}
       </tbody>
     </table>
   `;
+
+  document.querySelectorAll('.pending-select').forEach((cb) => {
+    cb.addEventListener('change', updatePendingSelectedCount);
+  });
+  updatePendingSelectedCount();
+
+  document.getElementById('bulkSignOutPendingBtn').onclick = bulkSignOutPending;
+}
+
+function updatePendingSelectedCount() {
+  const selected = Array.from(document.querySelectorAll('.pending-select:checked'));
+  document.getElementById('pendingSelectedCount').textContent = selected.length;
+}
+
+async function bulkSignOutPending() {
+  const selected = Array.from(document.querySelectorAll('.pending-select:checked'));
+  if (selected.length === 0) {
+    toast('Select at least one component awaiting pickup.');
+    return;
+  }
+
+  const grouped = {};
+  selected.forEach((cb) => {
+    const woId = cb.dataset.woId;
+    const compId = cb.dataset.compId;
+    const desc = cb.dataset.desc;
+
+    if (!grouped[woId]) {
+      grouped[woId] = { ids: [], descriptions: [] };
+    }
+    grouped[woId].ids.push(compId);
+    grouped[woId].descriptions.push(desc);
+  });
+
+  const woIds = Object.keys(grouped);
+
+  const runForIndex = (i) => {
+    if (i >= woIds.length) {
+      toast('Signed out selected components — receipts emailed');
+      load();
+      return;
+    }
+
+    const woId = woIds[i];
+    const group = grouped[woId];
+
+    openSignatureModal({
+      title: 'Sign Out to Vendor',
+      actionLabel: 'Confirm Pickup Signature',
+      items: group.descriptions,
+      onConfirm: async ({ signerName, signatureImage }) => {
+        await apiPost(`/api/work-orders/${woId}/sign-out`, {
+          componentIds: group.ids,
+          signerName,
+          signatureImage
+        });
+        runForIndex(i + 1);
+      }
+    });
+  };
+
+  runForIndex(0);
 }
 
 async function loadOut() {
@@ -117,7 +220,7 @@ async function loadOut() {
 
   const listEl = document.getElementById('list');
   if (rows.length === 0) {
-    listEl.innerHTML = '<div class="card empty-state">Nothing is currently out. New work orders will show up here.</div>';
+    listEl.innerHTML = '<div class="card empty-state">Nothing is currently out.</div>';
     return;
   }
 
@@ -136,17 +239,39 @@ async function loadOut() {
           </tr>
         </thead>
         <tbody>
-          ${rows.map((r) => `
-            <tr>
-              <td>${escapeHtml(r.wo.vendorName) || '\u2014'}</td>
-              <td><a class="link" href="/detail.html?id=${r.wo.id}">${escapeHtml(r.wo.woNumber) || '(no WO#)'} / ${escapeHtml(r.wo.poNumber) || '(no PO#)'}</a></td>
-              <td>${escapeHtml(r.c.description)}</td>
-              <td>${fmtDate(r.c.sentDate)}</td>
-              <td>${r.c.expectedReturnDate ? fmtDate(r.c.expectedReturnDate) : '\u2014'} ${r.c.isOverdueByExpected ? '<span class="badge red">past due</span>' : ''}</td>
-              <td><span class="badge ${daysOutBadgeClass(r.c.daysOut, threshold)}">${r.c.daysOut} day${r.c.daysOut === 1 ? '' : 's'}</span></td>
-              <td><button class="small secondary" onclick="quickSignIn('${r.wo.id}','${r.c.id}','${escapeHtml(r.c.description).replace(/'/g, "\\'")}')">Sign In</button></td>
-            </tr>
-          `).join('')}
+          ${rows.map((r) => {
+            const safeDesc = JSON.stringify(escapeHtml(r.c.description));
+            return `
+              <tr>
+                <td>${escapeHtml(r.wo.vendorName) || '\u2014'}</td>
+                <td>
+                  <a class="link" href="/detail.html?id=${r.wo.id}">
+                    ${escapeHtml(r.wo.woNumber) || '(no WO#)'} /
+                    ${escapeHtml(r.wo.poNumber) || '(no PO#)'}
+                  </a>
+                </td>
+                <td>${escapeHtml(r.c.description)}</td>
+                <td>${fmtDate(r.c.sentDate)}</td>
+                <td>
+                  ${r.c.expectedReturnDate ? fmtDate(r.c.expectedReturnDate) : '\u2014'}
+                  ${r.c.isOverdueByExpected ? '<span class="badge red">past due</span>' : ''}
+                </td>
+                <td>
+                  <span class="badge ${daysOutBadgeClass(r.c.daysOut, threshold)}">
+                    ${r.c.daysOut} day${r.c.daysOut === 1 ? '' : 's'}
+                  </span>
+                </td>
+                <td>
+                  <button
+                    class="small secondary"
+                    onclick="quickSignIn('${r.wo.id}','${r.c.id}',${safeDesc})"
+                  >
+                    Sign In
+                  </button>
+                </td>
+              </tr>
+            `;
+          }).join('')}
         </tbody>
       </table>
     </div>
@@ -159,8 +284,12 @@ function quickSignOut(woId, compId, description) {
     actionLabel: 'Confirm Pickup Signature',
     items: [description],
     onConfirm: async ({ signerName, signatureImage }) => {
-      await apiPost(`/api/work-orders/${woId}/sign-out`, { componentIds: [compId], signerName, signatureImage });
-      toast('Signed out to vendor \u2014 receipt emailed');
+      await apiPost(`/api/work-orders/${woId}/sign-out`, {
+        componentIds: [compId],
+        signerName,
+        signatureImage
+      });
+      toast('Signed out to vendor — receipt emailed');
       load();
     }
   });
@@ -172,7 +301,11 @@ function quickSignIn(woId, compId, description) {
     actionLabel: 'Confirm Return Signature',
     items: [description],
     onConfirm: async ({ signerName, signatureImage }) => {
-      await apiPost(`/api/work-orders/${woId}/sign-in`, { componentIds: [compId], signerName, signatureImage });
+      await apiPost(`/api/work-orders/${woId}/sign-in`, {
+        componentIds: [compId],
+        signerName,
+        signatureImage
+      });
       toast('Signed in as returned');
       load();
     }
@@ -187,3 +320,5 @@ load();
 </script>
 </body>
 </html>
+
+
