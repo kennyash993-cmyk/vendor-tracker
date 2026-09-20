@@ -332,3 +332,59 @@ a.link:hover { text-decoration: underline; }
   gap: 12px;
   flex-wrap: wrap;
 }
+/* ---------------------------------------------------------
+   MOBILE FIX: Awaiting Pickup (Pending Section)
+   Makes each row a clean card layout on phones
+   --------------------------------------------------------- */
+@media (max-width: 600px) {
+
+  /* Hide table header */
+  #pendingSection table thead {
+    display: none;
+  }
+
+  /* Convert table into stacked cards */
+  #pendingSection table,
+  #pendingSection tbody,
+  #pendingSection tr,
+  #pendingSection td {
+    display: block;
+    width: 100%;
+  }
+
+  #pendingSection tr {
+    margin-bottom: 14px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #fafafa;
+  }
+
+  #pendingSection td {
+    padding: 6px 0;
+    border-bottom: none;
+  }
+
+  /* Checkbox row spacing */
+  #pendingSection td:first-child {
+    margin-bottom: 8px;
+  }
+
+  /* Larger tap target for checkbox */
+  #pendingSection .pending-select {
+    transform: scale(1.3);
+    margin-right: 10px;
+  }
+
+  /* Make Sign Out button full-width */
+  #pendingSection td button.small {
+    width: 100%;
+    margin-top: 10px;
+  }
+
+  /* Vendor / WO / Component text spacing */
+  #pendingSection .link {
+    display: inline-block;
+    margin-top: 4px;
+  }
+}
