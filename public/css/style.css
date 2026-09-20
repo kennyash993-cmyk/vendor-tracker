@@ -398,6 +398,12 @@ a.link:hover { text-decoration: underline; }
     min-width: 700px;        /* force content wider than container */
     display: block;
   }
+  
+  .sig-items > div {
+  min-width: 700px;
+  display: block;
+}
+
 }
 
 
