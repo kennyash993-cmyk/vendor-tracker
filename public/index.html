@@ -29,6 +29,7 @@
     <div class="card stat"><div class="num" id="statOverdue">-</div><div class="label">Over Alert Threshold</div></div>
   </div>
 
+  <!-- ⭐ Awaiting Pickup Card -->
   <div class="card" id="pendingSection">
     <h2 style="margin-top:0;">Awaiting Pickup (Ready to Sign Out)</h2>
 
@@ -41,6 +42,7 @@
     <div id="pendingList"></div>
   </div>
 
+  <!-- ⭐ Filters for Out at Vendors -->
   <div class="filters card">
     <div>
       <label>Vendor</label>
@@ -59,16 +61,19 @@
     </div>
   </div>
 
-  <h2>Currently Out at Vendors</h2>
+  <!-- ⭐ Unified Card for Currently Out at Vendors -->
+  <div class="card" id="outSection">
+    <h2 style="margin-top:0;">Currently Out at Vendors</h2>
 
-  <!-- ⭐ Bulk Sign In Button -->
-  <div class="select-bar" style="margin-bottom:10px;">
-    <button class="primary small" id="bulkSignInOutBtn">
-      Sign In Selected (<span id="outSelectedCount">0</span>)
-    </button>
+    <div class="select-bar" style="margin-bottom:10px;">
+      <button class="primary small" id="bulkSignInOutBtn">
+        Sign In Selected (<span id="outSelectedCount">0</span>)
+      </button>
+    </div>
+
+    <!-- JS will fill this table -->
+    <div id="list"></div>
   </div>
-
-  <div id="list"></div>
 </main>
 
 <script src="/js/app.js"></script>
@@ -227,72 +232,71 @@ async function loadOut() {
   document.getElementById('statOverdue').textContent = rows.filter((r) => r.c.daysOut >= threshold).length;
 
   const listEl = document.getElementById('list');
+
   if (rows.length === 0) {
-    listEl.innerHTML = '<div class="card empty-state">Nothing is currently out.</div>';
+    listEl.innerHTML = '<p class="empty-state">Nothing is currently out.</p>';
     return;
   }
 
   listEl.innerHTML = `
-    <div class="card" style="padding:0;overflow-x:auto;">
-      <table>
-        <thead>
-          <tr>
-            <th></th>
-            <th>Vendor</th>
-            <th>Work Order / PO</th>
-            <th>Component</th>
-            <th>Sent</th>
-            <th>Expected Back</th>
-            <th>Days Out</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rows.map((r) => {
-            const safeDesc = JSON.stringify(escapeHtml(r.c.description));
-            return `
-              <tr>
-                <td>
-                  <input
-                    type="checkbox"
-                    class="out-select"
-                    data-wo-id="${r.wo.id}"
-                    data-comp-id="${r.c.id}"
-                    data-desc=${safeDesc}
-                  />
-                </td>
-                <td>${escapeHtml(r.wo.vendorName) || '\u2014'}</td>
-                <td>
-                  <a class="link" href="/detail.html?id=${r.wo.id}">
-                    ${escapeHtml(r.wo.woNumber) || '(no WO#)'} /
-                    ${escapeHtml(r.wo.poNumber) || '(no PO#)'}
-                  </a>
-                </td>
-                <td>${escapeHtml(r.c.description)}</td>
-                <td>${fmtDate(r.c.sentDate)}</td>
-                <td>
-                  ${r.c.expectedReturnDate ? fmtDate(r.c.expectedReturnDate) : '\u2014'}
-                  ${r.c.isOverdueByExpected ? '<span class="badge red">past due</span>' : ''}
-                </td>
-                <td>
-                  <span class="badge ${daysOutBadgeClass(r.c.daysOut, threshold)}">
-                    ${r.c.daysOut} day${r.c.daysOut === 1 ? '' : 's'}
-                  </span>
-                </td>
-                <td>
-                  <button
-                    class="small secondary"
-                    onclick="quickSignIn('${r.wo.id}','${r.c.id}',${safeDesc})"
-                  >
-                    Sign In
-                  </button>
-                </td>
-              </tr>
-            `;
-          }).join('')}
-        </tbody>
-      </table>
-    </div>
+    <table>
+      <thead>
+        <tr>
+          <th></th>
+          <th>Vendor</th>
+          <th>Work Order / PO</th>
+          <th>Component</th>
+          <th>Sent</th>
+          <th>Expected Back</th>
+          <th>Days Out</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map((r) => {
+          const safeDesc = JSON.stringify(escapeHtml(r.c.description));
+          return `
+            <tr>
+              <td>
+                <input
+                  type="checkbox"
+                  class="out-select"
+                  data-wo-id="${r.wo.id}"
+                  data-comp-id="${r.c.id}"
+                  data-desc=${safeDesc}
+                />
+              </td>
+              <td>${escapeHtml(r.wo.vendorName) || '\u2014'}</td>
+              <td>
+                <a class="link" href="/detail.html?id=${r.wo.id}">
+                  ${escapeHtml(r.wo.woNumber) || '(no WO#)'} /
+                  ${escapeHtml(r.wo.poNumber) || '(no PO#)'}
+                </a>
+              </td>
+              <td>${escapeHtml(r.c.description)}</td>
+              <td>${fmtDate(r.c.sentDate)}</td>
+              <td>
+                ${r.c.expectedReturnDate ? fmtDate(r.c.expectedReturnDate) : '\u2014'}
+                ${r.c.isOverdueByExpected ? '<span class="badge red">past due</span>' : ''}
+              </td>
+              <td>
+                <span class="badge ${daysOutBadgeClass(r.c.daysOut, threshold)}">
+                  ${r.c.daysOut} day${r.c.daysOut === 1 ? '' : 's'}
+                </span>
+              </td>
+              <td>
+                <button
+                  class="small secondary"
+                  onclick="quickSignIn('${r.wo.id}','${r.c.id}',${safeDesc})"
+                >
+                  Sign In
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('')}
+      </tbody>
+    </table>
   `;
 
   document.querySelectorAll('.out-select').forEach((cb) => {
@@ -400,6 +404,7 @@ load();
 </script>
 </body>
 </html>
+
 
 
 
