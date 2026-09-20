@@ -372,7 +372,7 @@ a.link:hover { text-decoration: underline; }
   #list td:first-child {
     display: flex !important;
     align-items: center !important;
-    gap: 20px;
+    gap: 16px;
     padding-bottom: 12px;
     padding-top: 4px;
     min-height: 32px; /* prevents collapse */
@@ -382,7 +382,7 @@ a.link:hover { text-decoration: underline; }
   #pendingSection .pending-select,
   #list .out-select {
     transform: scale(1.4);
-    margin: 0;
+    margin: 10;
     opacity: 1; /* ensures visibility */
   }
 
