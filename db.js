@@ -55,6 +55,7 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
+// Calendar days (kept in case you ever want it again)
 function daysBetween(start, end) {
   const s = new Date(start);
   const e = new Date(end);
@@ -62,7 +63,28 @@ function daysBetween(start, end) {
   return Math.floor(diff / (1000 * 60 * 60 * 24));
 }
 
+// Business days (Mon–Fri only)
+function businessDaysBetween(start, end) {
+  if (!start || !end) return 0;
 
+  const s = new Date(start);
+  const e = new Date(end);
+
+  let count = 0;
+  let current = new Date(s);
+
+  while (current <= e) {
+    const day = current.getDay(); // 0 = Sun, 6 = Sat
+    if (day !== 0 && day !== 6) {
+      count++;
+    }
+    current.setDate(current.getDate() + 1);
+  }
+
+  return count;
+}
+
+// ---------- Signatures / enrichment helpers ----------
 
 // Find the most recent signature event of a given type ('out' or 'in') that covers this component.
 function findSignatureFor(signatures, componentId, type) {
@@ -78,15 +100,21 @@ function findSignatureFor(signatures, componentId, type) {
 function enrichComponent(c, signatures) {
   const today = todayISO();
   let daysOut = 0;
+
   if (c.status === 'out' && c.sentDate) {
-    daysOut = daysBetween(c.sentDate, today);
+    // Use business days from sentDate to today
+    daysOut = businessDaysBetween(c.sentDate, today);
   } else if (c.status === 'returned' && c.sentDate && c.returnedDate) {
-    daysOut = daysBetween(c.sentDate, c.returnedDate);
+    // Use business days from sentDate to returnedDate
+    daysOut = businessDaysBetween(c.sentDate, c.returnedDate);
   }
-  const isOverdueByExpected = c.status === 'out' && c.expectedReturnDate && c.expectedReturnDate < today;
+
+  const isOverdueByExpected =
+    c.status === 'out' && c.expectedReturnDate && c.expectedReturnDate < today;
+
   return {
     ...c,
-    daysOut,
+    daysOut, // now represents business days out
     isOverdueByExpected,
     pickupSignature: findSignatureFor(signatures, c.id, 'out'),
     returnSignature: findSignatureFor(signatures, c.id, 'in')
@@ -96,13 +124,19 @@ function enrichComponent(c, signatures) {
 function enrichWorkOrder(wo) {
   const signatures = wo.signatures || [];
   const components = (wo.components || []).map((c) => enrichComponent(c, signatures));
+
   const anyOut = components.some((c) => c.status === 'out');
   const anyPending = components.some((c) => c.status === 'pending');
+
   let status = 'closed';
   if (anyOut) status = 'open';
   else if (anyPending) status = 'pending';
   else if (components.length === 0) status = 'pending';
-  const maxDaysOut = components.filter((c) => c.status === 'out').reduce((max, c) => Math.max(max, c.daysOut), 0);
+
+  const maxDaysOut = components
+    .filter((c) => c.status === 'out')
+    .reduce((max, c) => Math.max(max, c.daysOut), 0);
+
   return { ...wo, components, signatures, status, maxDaysOut };
 }
 
@@ -122,7 +156,10 @@ async function saveRaw(wo) {
 
 async function getAllWorkOrders() {
   const { workOrdersCol } = await connect();
-  const list = await workOrdersCol.find({}, { projection: { _id: 0 } }).sort({ createdAt: -1 }).toArray();
+  const list = await workOrdersCol
+    .find({}, { projection: { _id: 0 } })
+    .sort({ createdAt: -1 })
+    .toArray();
   return list.map(enrichWorkOrder);
 }
 
@@ -134,6 +171,7 @@ async function getWorkOrderById(id) {
 async function createWorkOrder({ woNumber, poNumber, vendorName, notes, components }) {
   const { workOrdersCol } = await connect();
   const now = new Date().toISOString();
+
   const wo = {
     id: newId(),
     woNumber: woNumber || '',
@@ -152,6 +190,7 @@ async function createWorkOrder({ woNumber, poNumber, vendorName, notes, componen
       notes: c.notes || ''
     }))
   };
+
   await workOrdersCol.insertOne(wo);
   return enrichWorkOrder(wo);
 }
@@ -159,9 +198,11 @@ async function createWorkOrder({ woNumber, poNumber, vendorName, notes, componen
 async function updateWorkOrder(id, fields) {
   const wo = await getRaw(id);
   if (!wo) return null;
+
   ['woNumber', 'poNumber', 'vendorName', 'notes'].forEach((key) => {
     if (fields[key] !== undefined) wo[key] = fields[key];
   });
+
   await saveRaw(wo);
   return enrichWorkOrder(wo);
 }
@@ -177,6 +218,7 @@ async function deleteWorkOrder(id) {
 async function addComponent(workOrderId, { description, expectedReturnDate, notes }) {
   const wo = await getRaw(workOrderId);
   if (!wo) return null;
+
   wo.components.push({
     id: newId(),
     description: description || '',
@@ -186,6 +228,7 @@ async function addComponent(workOrderId, { description, expectedReturnDate, note
     status: 'pending',
     notes: notes || ''
   });
+
   await saveRaw(wo);
   return enrichWorkOrder(wo);
 }
@@ -193,6 +236,7 @@ async function addComponent(workOrderId, { description, expectedReturnDate, note
 async function updateComponent(workOrderId, componentId, fields) {
   const wo = await getRaw(workOrderId);
   if (!wo) return null;
+
   const comp = wo.components.find((c) => c.id === componentId);
   if (!comp) return null;
 
@@ -207,12 +251,15 @@ async function updateComponent(workOrderId, componentId, fields) {
 async function deleteComponent(workOrderId, componentId) {
   const wo = await getRaw(workOrderId);
   if (!wo) return null;
+
   wo.components = wo.components.filter((c) => c.id !== componentId);
+
   if (wo.signatures) {
     wo.signatures.forEach((ev) => {
       ev.componentIds = ev.componentIds.filter((id) => id !== componentId);
     });
   }
+
   await saveRaw(wo);
   return enrichWorkOrder(wo);
 }
@@ -284,6 +331,7 @@ async function getVendorNames() {
 async function getOverdueComponents(thresholdDays) {
   const all = await getAllWorkOrders();
   const result = [];
+
   all.forEach((wo) => {
     wo.components.forEach((c) => {
       if (c.status === 'out' && c.daysOut >= thresholdDays) {
@@ -294,13 +342,14 @@ async function getOverdueComponents(thresholdDays) {
           description: c.description,
           sentDate: c.sentDate,
           expectedReturnDate: c.expectedReturnDate,
-          daysOut: c.daysOut,
+          daysOut: c.daysOut, // business days
           workOrderId: wo.id,
           componentId: c.id
         });
       }
     });
   });
+
   return result.sort((a, b) => b.daysOut - a.daysOut);
 }
 
@@ -320,3 +369,4 @@ module.exports = {
   getVendorNames,
   getOverdueComponents
 };
+
