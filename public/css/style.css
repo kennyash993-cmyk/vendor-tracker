@@ -338,6 +338,12 @@ a.link:hover { text-decoration: underline; }
    --------------------------------------------------------- */
 @media (max-width: 600px) {
 
+    /* Hide table headers */
+  #pendingSection table thead,
+  #list table thead {
+    display: none;
+  }
+
   /* Convert tables into stacked cards */
   #pendingSection table,
   #pendingSection tbody,
@@ -366,7 +372,7 @@ a.link:hover { text-decoration: underline; }
   #list td:first-child {
     display: flex !important;
     align-items: center !important;
-    gap: 12px;
+    gap: 20px;
     padding-bottom: 12px;
     padding-top: 4px;
     min-height: 32px; /* prevents collapse */
