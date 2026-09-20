@@ -365,36 +365,6 @@ a.link:hover { text-decoration: underline; }
   }
 }
 
-/* ---------------------------------------------------------
-   MOBILE FIX: Signature Log table horizontal scroll
-   --------------------------------------------------------- */
-@media (max-width: 600px) {
-
-  /* The card that contains the signature log */
-  .card table {
-    display: block;          /* allows horizontal overflow */
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    white-space: nowrap;     /* keeps columns on one line */
-  }
-
-  /* Force the table wider than the screen */
-  .card table thead,
-  .card table tbody,
-  .card table tr {
-    display: table;          /* keeps table layout */
-    width: 100%;
-  }
-
-  .card table {
-    min-width: 700px;        /* ensures scroll actually appears */
-  }
-
-  /* Optional: hide scrollbar */
-  .card table::-webkit-scrollbar {
-    height: 0;
-  }
-}
 
 
 
