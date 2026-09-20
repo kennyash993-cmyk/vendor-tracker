@@ -377,6 +377,24 @@ a.link:hover { text-decoration: underline; }
   }
 }
 
+/* ---------------------------------------------------------
+   GLOBAL BACKGROUND IMAGE (uses public/img/Capture.PNG)
+   --------------------------------------------------------- */
+body {
+  background: url('/img/Capture.PNG') no-repeat center center fixed;
+  background-size: cover;
+}
+
+/* Soft overlay so text + cards stay readable */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(255,255,255,0.55); /* adjust opacity */
+  pointer-events: none;
+  z-index: -1;
+}
+
 
 
 
