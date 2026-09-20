@@ -408,21 +408,20 @@ body::before {
 }
 
 /* ---------------------------------------------------------
-   MOBILE FIX: Side-scroll for "Currently Out at Vendors"
+   MOBILE FIX: Proper side-scroll for Out at Vendors
    --------------------------------------------------------- */
 @media (max-width: 600px) {
-  #outSection table {
-    display: block;
+  #outSection {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    white-space: nowrap;
-    min-width: 650px; /* ensures scroll instead of squish */
   }
 
-  #outSection table::-webkit-scrollbar {
-    height: 0;
+  #outSection table {
+    min-width: 700px;
+    white-space: nowrap;
   }
 }
+
 
 
 
