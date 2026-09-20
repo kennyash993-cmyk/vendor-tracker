@@ -394,6 +394,18 @@ body::before {
   pointer-events: none;
   z-index: -1;
 }
+/* ---------------------------------------------------------
+   MOBILE BACKGROUND FIX
+   --------------------------------------------------------- */
+@media (max-width: 600px) {
+  body {
+    background: #f7f8fa !important; /* your original clean background */
+  }
+
+  body::before {
+    background: none !important; /* remove overlay on mobile */
+  }
+}
 
 
 
