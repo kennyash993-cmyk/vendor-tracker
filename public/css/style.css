@@ -380,30 +380,28 @@ a.link:hover { text-decoration: underline; }
     overflow-x: hidden; /* prevents spill-out */
   }
 }
+
 /* ---------------------------------------------------------
-   MOBILE FIX: Allow signature log to scroll inside modal
+   MOBILE FIX: Signature info scroll inside component cards
    --------------------------------------------------------- */
 @media (max-width: 600px) {
-  .sig-modal {
-    overflow-x: auto;        /* allow horizontal scroll */
+  .component-row {
+    overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
 
-  .sig-items {
-    overflow-x: auto;        /* allow scroll inside the list */
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .sig-items table {
-    min-width: 700px;        /* force content wider than container */
+  .sig-info {
+    min-width: 650px;
     display: block;
   }
-  
-  .sig-items > div {
-  min-width: 700px;
-  display: block;
-}
 
+  .sig-info img.sig-thumb {
+    display: inline-block;
+  }
+
+  .component-row::-webkit-scrollbar {
+    height: 0;
+  }
 }
 
 
