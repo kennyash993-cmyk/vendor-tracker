@@ -371,8 +371,8 @@ a.link:hover { text-decoration: underline; }
   .card input[type="text"],
   .card input[type="number"],
   .card select {
-    width: 95%;
-    max-width: 95%;
+    width: 92%;
+    max-width: 92%;
     box-sizing: border-box;
   }
 
