@@ -60,6 +60,14 @@
   </div>
 
   <h2>Currently Out at Vendors</h2>
+
+  <!-- ⭐ Bulk Sign In Button -->
+  <div class="select-bar" style="margin-bottom:10px;">
+    <button class="primary small" id="bulkSignInOutBtn">
+      Sign In Selected (<span id="outSelectedCount">0</span>)
+    </button>
+  </div>
+
   <div id="list"></div>
 </main>
 
@@ -229,6 +237,7 @@ async function loadOut() {
       <table>
         <thead>
           <tr>
+            <th></th>
             <th>Vendor</th>
             <th>Work Order / PO</th>
             <th>Component</th>
@@ -243,6 +252,15 @@ async function loadOut() {
             const safeDesc = JSON.stringify(escapeHtml(r.c.description));
             return `
               <tr>
+                <td>
+                  <input
+                    type="checkbox"
+                    class="out-select"
+                    data-wo-id="${r.wo.id}"
+                    data-comp-id="${r.c.id}"
+                    data-desc=${safeDesc}
+                  />
+                </td>
                 <td>${escapeHtml(r.wo.vendorName) || '\u2014'}</td>
                 <td>
                   <a class="link" href="/detail.html?id=${r.wo.id}">
@@ -276,6 +294,68 @@ async function loadOut() {
       </table>
     </div>
   `;
+
+  document.querySelectorAll('.out-select').forEach((cb) => {
+    cb.addEventListener('change', updateOutSelectedCount);
+  });
+  updateOutSelectedCount();
+
+  document.getElementById('bulkSignInOutBtn').onclick = bulkSignInOut;
+}
+
+function updateOutSelectedCount() {
+  const selected = Array.from(document.querySelectorAll('.out-select:checked'));
+  document.getElementById('outSelectedCount').textContent = selected.length;
+}
+
+async function bulkSignInOut() {
+  const selected = Array.from(document.querySelectorAll('.out-select:checked'));
+  if (selected.length === 0) {
+    toast('Select at least one component that is currently out.');
+    return;
+  }
+
+  const grouped = {};
+  selected.forEach((cb) => {
+    const woId = cb.dataset.woId;
+    const compId = cb.dataset.compId;
+    const desc = cb.dataset.desc;
+
+    if (!grouped[woId]) {
+      grouped[woId] = { ids: [], descriptions: [] };
+    }
+    grouped[woId].ids.push(compId);
+    grouped[woId].descriptions.push(desc);
+  });
+
+  const woIds = Object.keys(grouped);
+
+  const runForIndex = (i) => {
+    if (i >= woIds.length) {
+      toast('Signed in selected components');
+      load();
+      return;
+    }
+
+    const woId = woIds[i];
+    const group = grouped[woId];
+
+    openSignatureModal({
+      title: 'Sign In From Vendor',
+      actionLabel: 'Confirm Return Signature',
+      items: group.descriptions,
+      onConfirm: async ({ signerName, signatureImage }) => {
+        await apiPost(`/api/work-orders/${woId}/sign-in`, {
+          componentIds: group.ids,
+          signerName,
+          signatureImage
+        });
+        runForIndex(i + 1);
+      }
+    });
+  };
+
+  runForIndex(0);
 }
 
 function quickSignOut(woId, compId, description) {
@@ -320,5 +400,6 @@ load();
 </script>
 </body>
 </html>
+
 
 
