@@ -346,6 +346,41 @@ a.link:hover { text-decoration: underline; }
     min-width: 600px; /* forces scroll instead of squishing */
   }
 }
+/* ---------------------------------------------------------
+   MOBILE FIX: Signature Log horizontal scroll
+   --------------------------------------------------------- */
+@media (max-width: 600px) {
+  .sig-items {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .sig-items table {
+    min-width: 600px; /* prevents squishing */
+  }
+
+  .sig-items::-webkit-scrollbar {
+    height: 0; /* optional: hide scrollbar */
+  }
+}
+/* ---------------------------------------------------------
+   MOBILE FIX: Date inputs stay inside card
+   --------------------------------------------------------- */
+@media (max-width: 600px) {
+  .card input[type="date"],
+  .card input[type="text"],
+  .card input[type="number"],
+  .card select {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .card {
+    overflow-x: hidden; /* prevents spill-out */
+  }
+}
+
 
 
 
