@@ -334,6 +334,7 @@ a.link:hover { text-decoration: underline; }
 }
 /* ---------------------------------------------------------
    MOBILE FIX: Unified Card Layout for Pending + Out Sections
+   Corrected checkbox alignment + visibility
    --------------------------------------------------------- */
 @media (max-width: 600px) {
 
@@ -359,52 +360,52 @@ a.link:hover { text-decoration: underline; }
   /* Card container */
   #pendingSection tr,
   #list tr {
-    margin-bottom: 14px;
-    padding: 14px;
+    margin-bottom: 16px;
+    padding: 16px;
     border: 1px solid var(--border);
     border-radius: 10px;
     background: #fafafa;
-    position: relative;
   }
 
-  /* Checkbox row (first column) */
+  /* FIRST COLUMN (checkbox row) — FIXES BOTH ISSUES */
   #pendingSection td:first-child,
   #list td:first-child {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding-bottom: 10px;
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px;
+    padding-bottom: 12px;
+    padding-top: 4px;
+    min-height: 32px; /* prevents collapse */
   }
 
-  /* Checkbox styling */
+  /* Checkbox styling — FIXES VISIBILITY */
   #pendingSection .pending-select,
   #list .out-select {
-    transform: scale(1.3);
+    transform: scale(1.4);
     margin: 0;
-    position: relative;
-    top: 0;
-    left: 0;
+    opacity: 1; /* ensures visibility */
   }
 
   /* Full-width buttons */
   #pendingSection td button.small,
   #list td button.small {
     width: 100%;
-    margin-top: 10px;
+    margin-top: 12px;
   }
 
   /* Link spacing */
   #pendingSection .link,
   #list .link {
     display: inline-block;
-    margin-top: 4px;
+    margin-top: 6px;
   }
 
   /* Badge spacing */
   #list .badge {
-    margin-top: 6px;
+    margin-top: 8px;
     display: inline-block;
   }
 }
+
 
 
