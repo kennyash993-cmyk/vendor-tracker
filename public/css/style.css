@@ -382,27 +382,23 @@ a.link:hover { text-decoration: underline; }
 }
 
 /* ---------------------------------------------------------
-   MOBILE FIX: Signature info scroll inside component cards
+   MOBILE FIX: Only signature log scrolls (not whole card)
    --------------------------------------------------------- */
 @media (max-width: 600px) {
-  .component-row {
+  .sig-info {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-  }
-
-  .sig-info {
-    min-width: 650px;
+    max-width: 100%;
+    white-space: nowrap;      /* keeps the line + image on one scrollable row */
     display: block;
   }
 
   .sig-info img.sig-thumb {
     display: inline-block;
-  }
-
-  .component-row::-webkit-scrollbar {
-    height: 0;
+    vertical-align: middle;
   }
 }
+
 
 
 
