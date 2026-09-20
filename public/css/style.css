@@ -382,7 +382,7 @@ a.link:hover { text-decoration: underline; }
   #pendingSection .pending-select,
   #list .out-select {
     transform: scale(1.4);
-    margin: 10;
+    margin: 100;
     opacity: 1; /* ensures visibility */
   }
 
