@@ -333,6 +333,79 @@ a.link:hover { text-decoration: underline; }
   flex-wrap: wrap;
 }
 
+/* ---------------------------------------------------------
+   FINAL MOBILE FIX: Stable checkbox + card layout
+   Works for BOTH Pending and Out sections
+   --------------------------------------------------------- */
+@media (max-width: 600px) {
+
+  /* Hide table headers */
+  #pendingSection table thead,
+  #list table thead {
+    display: none;
+  }
+
+  /* Convert tables into stacked cards */
+  #pendingSection table,
+  #pendingSection tbody,
+  #pendingSection tr,
+  #pendingSection td,
+  #list table,
+  #list tbody,
+  #list tr,
+  #list td {
+    display: block;
+    width: 100%;
+  }
+
+  /* Card container */
+  #pendingSection tr,
+  #list tr {
+    margin-bottom: 16px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #fafafa;
+  }
+
+  /* FIRST COLUMN — checkbox row */
+  #pendingSection td:first-child,
+  #list td:first-child {
+    display: flex !important;
+    align-items: center !important;
+    gap: 14px;
+    padding: 10px 0 14px;
+    min-height: 42px; /* prevents collapse */
+  }
+
+  /* Checkbox visibility + size */
+  #pendingSection .pending-select,
+  #list .out-select {
+    transform: scale(1.6);
+    opacity: 1;
+    margin: 0;
+  }
+
+  /* Full-width buttons */
+  #pendingSection td button.small,
+  #list td button.small {
+    width: 100%;
+    margin-top: 12px;
+  }
+
+  /* Link spacing */
+  #pendingSection .link,
+  #list .link {
+    display: inline-block;
+    margin-top: 6px;
+  }
+
+  /* Badge spacing */
+  #list .badge {
+    margin-top: 8px;
+    display: inline-block;
+  }
+}
 
 
 
