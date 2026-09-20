@@ -338,12 +338,6 @@ a.link:hover { text-decoration: underline; }
    --------------------------------------------------------- */
 @media (max-width: 600px) {
 
-  /* Hide table headers */
-  #pendingSection table thead,
-  #list table thead {
-    display: none;
-  }
-
   /* Convert tables into stacked cards */
   #pendingSection table,
   #pendingSection tbody,
