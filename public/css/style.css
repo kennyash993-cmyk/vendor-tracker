@@ -333,58 +333,65 @@ a.link:hover { text-decoration: underline; }
   flex-wrap: wrap;
 }
 /* ---------------------------------------------------------
-   MOBILE FIX: Awaiting Pickup (Pending Section)
-   Makes each row a clean card layout on phones
+   MOBILE FIX: Currently Out at Vendors
+   Matches the Pending Section mobile card layout
    --------------------------------------------------------- */
 @media (max-width: 600px) {
 
-  /* Hide table header */
-  #pendingSection table thead {
+  #list table thead {
     display: none;
   }
 
-  /* Convert table into stacked cards */
-  #pendingSection table,
-  #pendingSection tbody,
-  #pendingSection tr,
-  #pendingSection td {
+  #list table,
+  #list tbody,
+  #list tr,
+  #list td {
     display: block;
     width: 100%;
   }
 
-  #pendingSection tr {
+  #list tr {
     margin-bottom: 14px;
     padding: 14px;
     border: 1px solid var(--border);
     border-radius: 10px;
     background: #fafafa;
+    position: relative;
   }
 
-  #pendingSection td {
-    padding: 6px 0;
-    border-bottom: none;
+  /* Checkbox row */
+  #list td:first-child {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 10px;
   }
 
-  /* Checkbox row spacing */
-  #pendingSection td:first-child {
-    margin-bottom: 8px;
-  }
-
-  /* Larger tap target for checkbox */
-  #pendingSection .pending-select {
+  /* Bigger checkbox, properly aligned */
+  #list .out-select {
     transform: scale(1.3);
-    margin-right: 10px;
+    margin: 0;
+    position: relative;
+    top: 0;
+    left: 0;
   }
 
-  /* Make Sign Out button full-width */
-  #pendingSection td button.small {
+  /* Full-width Sign In button */
+  #list td button.small {
     width: 100%;
     margin-top: 10px;
   }
 
-  /* Vendor / WO / Component text spacing */
-  #pendingSection .link {
+  /* Vendor / WO / Component spacing */
+  #list .link {
     display: inline-block;
     margin-top: 4px;
   }
+
+  /* Badge spacing */
+  #list .badge {
+    margin-top: 6px;
+    display: inline-block;
+  }
 }
+
