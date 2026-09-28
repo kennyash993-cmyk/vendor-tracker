@@ -5,6 +5,31 @@
 <title>Dashboard - Vendor Work Tracker</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="stylesheet" href="/css/style.css" />
+
+<style>
+/* PRINT ONLY: show ONLY Out-at-Vendors section */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+
+  #outSection, #outSection * {
+    visibility: visible !important;
+  }
+
+  #outSection {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+
+  body {
+    background: #ffffff !important;
+  }
+}
+</style>
+
 </head>
 <body>
 <nav>
@@ -60,7 +85,7 @@
     <div id="pendingList"></div>
   </div>
 
-  <!-- Out-at-Vendors Filters (NOW MATCHING) -->
+  <!-- Out-at-Vendors Filters (wrapped in card to match Pending) -->
   <div class="card" style="margin-bottom: 20px;">
     <div class="filters">
       <div>
@@ -89,6 +114,12 @@
   <!-- Out at Vendors -->
   <div class="card" id="outSection">
     <h2 style="margin-top:0;">Currently Out at Vendors</h2>
+
+    <!-- PRINT BUTTON -->
+    <button class="secondary small" onclick="window.print()" style="float:right; margin-top:-35px;">
+      Print This Section
+    </button>
+    <div style="clear:both;"></div>
 
     <div class="select-bar" style="margin-bottom:10px;">
       <button class="primary small" id="bulkSignInOutBtn">
@@ -469,12 +500,3 @@ load();
 
 </body>
 </html>
-
-
-
-
-
-
-
-
-
