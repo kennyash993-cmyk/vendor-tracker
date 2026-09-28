@@ -60,27 +60,29 @@
     <div id="pendingList"></div>
   </div>
 
-  <!-- Filters for Out at Vendors -->
-  <div class="filters">
-    <div>
-      <label>Vendor</label>
-      <input id="fVendor" placeholder="Filter by vendor" />
-    </div>
-    <div>
-      <label>Sort by</label>
-      <select id="fSort">
-        <option value="daysDesc">Days out (longest first)</option>
-        <option value="daysAsc">Days out (shortest first)</option>
-        <option value="vendorAsc">Vendor (A → Z)</option>
-        <option value="vendorDesc">Vendor (Z → A)</option>
-        <option value="woAsc">Work Order (A → Z)</option>
-        <option value="woDesc">Work Order (Z → A)</option>
-        <option value="compAsc">Component (A → Z)</option>
-        <option value="compDesc">Component (Z → A)</option>
-      </select>
-    </div>
-    <div>
-      <button class="secondary" id="refreshBtn">Refresh</button>
+  <!-- Out-at-Vendors Filters (NOW MATCHING) -->
+  <div class="card" style="margin-bottom: 20px;">
+    <div class="filters">
+      <div>
+        <label>Vendor</label>
+        <input id="fVendor" placeholder="Filter by vendor" />
+      </div>
+      <div>
+        <label>Sort by</label>
+        <select id="fSort">
+          <option value="daysDesc">Days out (longest first)</option>
+          <option value="daysAsc">Days out (shortest first)</option>
+          <option value="vendorAsc">Vendor (A → Z)</option>
+          <option value="vendorDesc">Vendor (Z → A)</option>
+          <option value="woAsc">Work Order (A → Z)</option>
+          <option value="woDesc">Work Order (Z → A)</option>
+          <option value="compAsc">Component (A → Z)</option>
+          <option value="compDesc">Component (Z → A)</option>
+        </select>
+      </div>
+      <div>
+        <button class="secondary" id="refreshBtn">Refresh</button>
+      </div>
     </div>
   </div>
 
@@ -467,6 +469,7 @@ load();
 
 </body>
 </html>
+
 
 
 
