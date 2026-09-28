@@ -29,9 +29,19 @@
     <div class="card stat"><div class="num" id="statOverdue">-</div><div class="label">Over Alert Threshold</div></div>
   </div>
 
-  <!-- ⭐ Awaiting Pickup Card -->
+  <!-- ⭐ Awaiting Pickup -->
   <div class="card" id="pendingSection">
     <h2 style="margin-top:0;">Awaiting Pickup (Ready to Sign Out)</h2>
+
+    <div class="filters" style="margin-bottom:10px;">
+      <div>
+        <label>Sort by</label>
+        <select id="pendingSort">
+          <option value="vendor">Vendor</option>
+          <option value="wo">Work Order</option>
+        </select>
+      </div>
+    </div>
 
     <div class="select-bar" style="margin-bottom:10px;">
       <button class="primary small" id="bulkSignOutPendingBtn">
@@ -43,7 +53,7 @@
   </div>
 
   <!-- ⭐ Filters for Out at Vendors -->
-  <div class="filters card">
+  <div class="filters">
     <div>
       <label>Vendor</label>
       <input id="fVendor" placeholder="Filter by vendor" />
@@ -54,6 +64,7 @@
         <option value="daysDesc">Days out (longest first)</option>
         <option value="daysAsc">Days out (shortest first)</option>
         <option value="vendor">Vendor name</option>
+        <option value="wo">Work Order</option>
       </select>
     </div>
     <div>
@@ -61,7 +72,7 @@
     </div>
   </div>
 
-  <!-- ⭐ Unified Card for Currently Out at Vendors -->
+  <!-- ⭐ Out at Vendors -->
   <div class="card" id="outSection">
     <h2 style="margin-top:0;">Currently Out at Vendors</h2>
 
@@ -71,13 +82,13 @@
       </button>
     </div>
 
-    <!-- JS will fill this table -->
     <div id="list"></div>
   </div>
 </main>
 
 <script src="/js/app.js"></script>
 <script src="/js/signature.js"></script>
+
 <script>
 let threshold = 7;
 
@@ -89,10 +100,18 @@ async function load() {
   await loadOut();
 }
 
+/* ---------------------------------------------------------
+   LOAD PENDING (Awaiting Pickup)
+--------------------------------------------------------- */
 async function loadPending() {
   const workOrders = await apiGet('/api/work-orders?onlyPending=true');
   let rows = [];
   workOrders.forEach((wo) => wo.components.forEach((c) => rows.push({ wo, c })));
+
+  /* Sorting */
+  const pSort = document.getElementById('pendingSort').value;
+  if (pSort === 'vendor') rows.sort((a, b) => a.wo.vendorName.localeCompare(b.wo.vendorName));
+  if (pSort === 'wo') rows.sort((a, b) => a.wo.woNumber.localeCompare(b.wo.woNumber));
 
   document.getElementById('statPendingCount').textContent = rows.length;
   const el = document.getElementById('pendingList');
@@ -120,27 +139,22 @@ async function loadPending() {
           return `
             <tr>
               <td>
-                <input
-                  type="checkbox"
-                  class="pending-select"
+                <input type="checkbox" class="pending-select"
                   data-wo-id="${r.wo.id}"
                   data-comp-id="${r.c.id}"
-                  data-desc=${safeDesc}
-                />
+                  data-desc=${safeDesc} />
               </td>
-              <td>${escapeHtml(r.wo.vendorName) || '\u2014'}</td>
+              <td>${escapeHtml(r.wo.vendorName) || '—'}</td>
               <td>
                 <a class="link" href="/detail.html?id=${r.wo.id}">
-                  ${escapeHtml(r.wo.woNumber) || '(no WO#)'} /
-                  ${escapeHtml(r.wo.poNumber) || '(no PO#)'}
+                  ${escapeHtml(r.wo.woNumber)} /
+                  ${escapeHtml(r.wo.poNumber)}
                 </a>
               </td>
               <td>${escapeHtml(r.c.description)}</td>
               <td>
-                <button
-                  class="small primary"
-                  onclick="quickSignOut('${r.wo.id}','${r.c.id}',${safeDesc})"
-                >
+                <button class="small primary"
+                  onclick="quickSignOut('${r.wo.id}','${r.c.id}',${safeDesc})">
                   Sign Out
                 </button>
               </td>
@@ -151,9 +165,9 @@ async function loadPending() {
     </table>
   `;
 
-  document.querySelectorAll('.pending-select').forEach((cb) => {
-    cb.addEventListener('change', updatePendingSelectedCount);
-  });
+  document.querySelectorAll('.pending-select').forEach((cb) =>
+    cb.addEventListener('change', updatePendingSelectedCount)
+  );
   updatePendingSelectedCount();
 
   document.getElementById('bulkSignOutPendingBtn').onclick = bulkSignOutPending;
@@ -166,10 +180,7 @@ function updatePendingSelectedCount() {
 
 async function bulkSignOutPending() {
   const selected = Array.from(document.querySelectorAll('.pending-select:checked'));
-  if (selected.length === 0) {
-    toast('Select at least one component awaiting pickup.');
-    return;
-  }
+  if (selected.length === 0) return toast('Select at least one component awaiting pickup.');
 
   const grouped = {};
   selected.forEach((cb) => {
@@ -177,9 +188,7 @@ async function bulkSignOutPending() {
     const compId = cb.dataset.compId;
     const desc = cb.dataset.desc;
 
-    if (!grouped[woId]) {
-      grouped[woId] = { ids: [], descriptions: [] };
-    }
+    if (!grouped[woId]) grouped[woId] = { ids: [], descriptions: [] };
     grouped[woId].ids.push(compId);
     grouped[woId].descriptions.push(desc);
   });
@@ -214,22 +223,31 @@ async function bulkSignOutPending() {
   runForIndex(0);
 }
 
+/* ---------------------------------------------------------
+   LOAD OUT (Currently Out at Vendors)
+--------------------------------------------------------- */
 async function loadOut() {
   const workOrders = await apiGet('/api/work-orders?onlyOut=true');
 
   let rows = [];
   workOrders.forEach((wo) => wo.components.forEach((c) => rows.push({ wo, c })));
 
+  /* Filtering */
   const vendorFilter = document.getElementById('fVendor').value.trim().toLowerCase();
-  if (vendorFilter) rows = rows.filter((r) => r.wo.vendorName.toLowerCase().includes(vendorFilter));
+  if (vendorFilter) rows = rows.filter((r) =>
+    r.wo.vendorName.toLowerCase().includes(vendorFilter)
+  );
 
+  /* Sorting */
   const sort = document.getElementById('fSort').value;
   if (sort === 'daysDesc') rows.sort((a, b) => b.c.daysOut - a.c.daysOut);
   if (sort === 'daysAsc') rows.sort((a, b) => a.c.daysOut - b.c.daysOut);
   if (sort === 'vendor') rows.sort((a, b) => a.wo.vendorName.localeCompare(b.wo.vendorName));
+  if (sort === 'wo') rows.sort((a, b) => a.wo.woNumber.localeCompare(b.wo.woNumber));
 
   document.getElementById('statOutCount').textContent = rows.length;
-  document.getElementById('statOverdue').textContent = rows.filter((r) => r.c.daysOut >= threshold).length;
+  document.getElementById('statOverdue').textContent =
+    rows.filter((r) => r.c.daysOut >= threshold).length;
 
   const listEl = document.getElementById('list');
 
@@ -258,25 +276,22 @@ async function loadOut() {
           return `
             <tr>
               <td>
-                <input
-                  type="checkbox"
-                  class="out-select"
+                <input type="checkbox" class="out-select"
                   data-wo-id="${r.wo.id}"
                   data-comp-id="${r.c.id}"
-                  data-desc=${safeDesc}
-                />
+                  data-desc=${safeDesc} />
               </td>
-              <td>${escapeHtml(r.wo.vendorName) || '\u2014'}</td>
+              <td>${escapeHtml(r.wo.vendorName) || '—'}</td>
               <td>
                 <a class="link" href="/detail.html?id=${r.wo.id}">
-                  ${escapeHtml(r.wo.woNumber) || '(no WO#)'} /
-                  ${escapeHtml(r.wo.poNumber) || '(no PO#)'}
+                  ${escapeHtml(r.wo.woNumber)} /
+                  ${escapeHtml(r.wo.poNumber)}
                 </a>
               </td>
               <td>${escapeHtml(r.c.description)}</td>
               <td>${fmtDate(r.c.sentDate)}</td>
               <td>
-                ${r.c.expectedReturnDate ? fmtDate(r.c.expectedReturnDate) : '\u2014'}
+                ${r.c.expectedReturnDate ? fmtDate(r.c.expectedReturnDate) : '—'}
                 ${r.c.isOverdueByExpected ? '<span class="badge red">past due</span>' : ''}
               </td>
               <td>
@@ -285,10 +300,8 @@ async function loadOut() {
                 </span>
               </td>
               <td>
-                <button
-                  class="small secondary"
-                  onclick="quickSignIn('${r.wo.id}','${r.c.id}',${safeDesc})"
-                >
+                <button class="small secondary"
+                  onclick="quickSignIn('${r.wo.id}','${r.c.id}',${safeDesc})">
                   Sign In
                 </button>
               </td>
@@ -299,9 +312,9 @@ async function loadOut() {
     </table>
   `;
 
-  document.querySelectorAll('.out-select').forEach((cb) => {
-    cb.addEventListener('change', updateOutSelectedCount);
-  });
+  document.querySelectorAll('.out-select').forEach((cb) =>
+    cb.addEventListener('change', updateOutSelectedCount)
+  );
   updateOutSelectedCount();
 
   document.getElementById('bulkSignInOutBtn').onclick = bulkSignInOut;
@@ -314,10 +327,7 @@ function updateOutSelectedCount() {
 
 async function bulkSignInOut() {
   const selected = Array.from(document.querySelectorAll('.out-select:checked'));
-  if (selected.length === 0) {
-    toast('Select at least one component that is currently out.');
-    return;
-  }
+  if (selected.length === 0) return toast('Select at least one component that is currently out.');
 
   const grouped = {};
   selected.forEach((cb) => {
@@ -325,9 +335,7 @@ async function bulkSignInOut() {
     const compId = cb.dataset.compId;
     const desc = cb.dataset.desc;
 
-    if (!grouped[woId]) {
-      grouped[woId] = { ids: [], descriptions: [] };
-    }
+    if (!grouped[woId]) grouped[woId] = { ids: [], descriptions: [] };
     grouped[woId].ids.push(compId);
     grouped[woId].descriptions.push(desc);
   });
@@ -396,14 +404,17 @@ function quickSignIn(woId, compId, description) {
   });
 }
 
+document.getElementById('pendingSort').addEventListener('change', loadPending);
 document.getElementById('fVendor').addEventListener('input', loadOut);
 document.getElementById('fSort').addEventListener('change', loadOut);
 document.getElementById('refreshBtn').addEventListener('click', load);
 
 load();
 </script>
+
 </body>
 </html>
+
 
 
 
