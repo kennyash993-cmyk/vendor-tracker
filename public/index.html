@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<title>Dashboard - Vendor Work Tracker</title>
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="stylesheet" href="/css/style.css" />
+  <meta charset="UTF-8" />
+  <title>Dashboard - Vendor Work Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
 <nav>
@@ -24,21 +24,38 @@
   <h1>Dashboard</h1>
 
   <div class="grid-3" id="statCards">
-    <div class="card stat"><div class="num" id="statOutCount">-</div><div class="label">Components Out</div></div>
-    <div class="card stat"><div class="num" id="statPendingCount">-</div><div class="label">Awaiting Pickup</div></div>
-    <div class="card stat"><div class="num" id="statOverdue">-</div><div class="label">Over Alert Threshold</div></div>
+    <div class="card stat">
+      <div class="num" id="statOutCount">-</div>
+      <div class="label">Components Out</div>
+    </div>
+    <div class="card stat">
+      <div class="num" id="statPendingCount">-</div>
+      <div class="label">Awaiting Pickup</div>
+    </div>
+    <div class="card stat">
+      <div class="num" id="statOverdue">-</div>
+      <div class="label">Over Alert Threshold</div>
+    </div>
   </div>
 
-  <!-- ⭐ Awaiting Pickup -->
+  <!-- Awaiting Pickup -->
   <div class="card" id="pendingSection">
     <h2 style="margin-top:0;">Awaiting Pickup (Ready to Sign Out)</h2>
 
     <div class="filters" style="margin-bottom:10px;">
       <div>
+        <label>Vendor</label>
+        <input id="pendingVendor" placeholder="Filter by vendor" />
+      </div>
+      <div>
         <label>Sort by</label>
         <select id="pendingSort">
-          <option value="vendor">Vendor</option>
-          <option value="wo">Work Order</option>
+          <option value="vendorAsc">Vendor (A → Z)</option>
+          <option value="vendorDesc">Vendor (Z → A)</option>
+          <option value="woAsc">Work Order (A → Z)</option>
+          <option value="woDesc">Work Order (Z → A)</option>
+          <option value="compAsc">Component (A → Z)</option>
+          <option value="compDesc">Component (Z → A)</option>
         </select>
       </div>
     </div>
@@ -52,7 +69,7 @@
     <div id="pendingList"></div>
   </div>
 
-  <!-- ⭐ Filters for Out at Vendors -->
+  <!-- Filters for Out at Vendors -->
   <div class="filters">
     <div>
       <label>Vendor</label>
@@ -63,8 +80,12 @@
       <select id="fSort">
         <option value="daysDesc">Days out (longest first)</option>
         <option value="daysAsc">Days out (shortest first)</option>
-        <option value="vendor">Vendor name</option>
-        <option value="wo">Work Order</option>
+        <option value="vendorAsc">Vendor (A → Z)</option>
+        <option value="vendorDesc">Vendor (Z → A)</option>
+        <option value="woAsc">Work Order (A → Z)</option>
+        <option value="woDesc">Work Order (Z → A)</option>
+        <option value="compAsc">Component (A → Z)</option>
+        <option value="compDesc">Component (Z → A)</option>
       </select>
     </div>
     <div>
@@ -72,7 +93,7 @@
     </div>
   </div>
 
-  <!-- ⭐ Out at Vendors -->
+  <!-- Out at Vendors -->
   <div class="card" id="outSection">
     <h2 style="margin-top:0;">Currently Out at Vendors</h2>
 
@@ -100,18 +121,28 @@ async function load() {
   await loadOut();
 }
 
-/* ---------------------------------------------------------
-   LOAD PENDING (Awaiting Pickup)
---------------------------------------------------------- */
+/* -------------------------
+   Awaiting Pickup
+------------------------- */
 async function loadPending() {
   const workOrders = await apiGet('/api/work-orders?onlyPending=true');
   let rows = [];
   workOrders.forEach((wo) => wo.components.forEach((c) => rows.push({ wo, c })));
 
-  /* Sorting */
-  const pSort = document.getElementById('pendingSort').value;
-  if (pSort === 'vendor') rows.sort((a, b) => a.wo.vendorName.localeCompare(b.wo.vendorName));
-  if (pSort === 'wo') rows.sort((a, b) => a.wo.woNumber.localeCompare(b.wo.woNumber));
+  const vendorFilter = document.getElementById('pendingVendor').value.trim().toLowerCase();
+  if (vendorFilter) {
+    rows = rows.filter((r) =>
+      (r.wo.vendorName || '').toLowerCase().includes(vendorFilter)
+    );
+  }
+
+  const sort = document.getElementById('pendingSort').value;
+  if (sort === 'vendorAsc') rows.sort((a, b) => (a.wo.vendorName || '').localeCompare(b.wo.vendorName || ''));
+  if (sort === 'vendorDesc') rows.sort((a, b) => (b.wo.vendorName || '').localeCompare(a.wo.vendorName || ''));
+  if (sort === 'woAsc') rows.sort((a, b) => (a.wo.woNumber || '').localeCompare(b.wo.woNumber || ''));
+  if (sort === 'woDesc') rows.sort((a, b) => (b.wo.woNumber || '').localeCompare(a.wo.woNumber || ''));
+  if (sort === 'compAsc') rows.sort((a, b) => (a.c.description || '').localeCompare(b.c.description || ''));
+  if (sort === 'compDesc') rows.sort((a, b) => (b.c.description || '').localeCompare(a.c.description || ''));
 
   document.getElementById('statPendingCount').textContent = rows.length;
   const el = document.getElementById('pendingList');
@@ -135,26 +166,31 @@ async function loadPending() {
       </thead>
       <tbody>
         ${rows.map((r) => {
-          const safeDesc = JSON.stringify(escapeHtml(r.c.description));
+          const safeDesc = JSON.stringify(escapeHtml(r.c.description || ''));
           return `
             <tr>
               <td>
-                <input type="checkbox" class="pending-select"
+                <input
+                  type="checkbox"
+                  class="pending-select"
                   data-wo-id="${r.wo.id}"
                   data-comp-id="${r.c.id}"
-                  data-desc=${safeDesc} />
+                  data-desc=${safeDesc}
+                />
               </td>
-              <td>${escapeHtml(r.wo.vendorName) || '—'}</td>
+              <td>${escapeHtml(r.wo.vendorName || '—')}</td>
               <td>
                 <a class="link" href="/detail.html?id=${r.wo.id}">
-                  ${escapeHtml(r.wo.woNumber)} /
-                  ${escapeHtml(r.wo.poNumber)}
+                  ${escapeHtml(r.wo.woNumber || '(no WO#)')} /
+                  ${escapeHtml(r.wo.poNumber || '(no PO#)')}
                 </a>
               </td>
-              <td>${escapeHtml(r.c.description)}</td>
+              <td>${escapeHtml(r.c.description || '')}</td>
               <td>
-                <button class="small primary"
-                  onclick="quickSignOut('${r.wo.id}','${r.c.id}',${safeDesc})">
+                <button
+                  class="small primary"
+                  onclick="quickSignOut('${r.wo.id}','${r.c.id}',${safeDesc})"
+                >
                   Sign Out
                 </button>
               </td>
@@ -165,9 +201,9 @@ async function loadPending() {
     </table>
   `;
 
-  document.querySelectorAll('.pending-select').forEach((cb) =>
-    cb.addEventListener('change', updatePendingSelectedCount)
-  );
+  document.querySelectorAll('.pending-select').forEach((cb) => {
+    cb.addEventListener('change', updatePendingSelectedCount);
+  });
   updatePendingSelectedCount();
 
   document.getElementById('bulkSignOutPendingBtn').onclick = bulkSignOutPending;
@@ -180,7 +216,10 @@ function updatePendingSelectedCount() {
 
 async function bulkSignOutPending() {
   const selected = Array.from(document.querySelectorAll('.pending-select:checked'));
-  if (selected.length === 0) return toast('Select at least one component awaiting pickup.');
+  if (selected.length === 0) {
+    toast('Select at least one component awaiting pickup.');
+    return;
+  }
 
   const grouped = {};
   selected.forEach((cb) => {
@@ -188,7 +227,9 @@ async function bulkSignOutPending() {
     const compId = cb.dataset.compId;
     const desc = cb.dataset.desc;
 
-    if (!grouped[woId]) grouped[woId] = { ids: [], descriptions: [] };
+    if (!grouped[woId]) {
+      grouped[woId] = { ids: [], descriptions: [] };
+    }
     grouped[woId].ids.push(compId);
     grouped[woId].descriptions.push(desc);
   });
@@ -205,10 +246,12 @@ async function bulkSignOutPending() {
     const woId = woIds[i];
     const group = grouped[woId];
 
+    const items = group.descriptions.map((d) => JSON.parse(d));
+
     openSignatureModal({
       title: 'Sign Out to Vendor',
       actionLabel: 'Confirm Pickup Signature',
-      items: group.descriptions,
+      items,
       onConfirm: async ({ signerName, signatureImage }) => {
         await apiPost(`/api/work-orders/${woId}/sign-out`, {
           componentIds: group.ids,
@@ -223,31 +266,35 @@ async function bulkSignOutPending() {
   runForIndex(0);
 }
 
-/* ---------------------------------------------------------
-   LOAD OUT (Currently Out at Vendors)
---------------------------------------------------------- */
+/* -------------------------
+   Currently Out at Vendors
+------------------------- */
 async function loadOut() {
   const workOrders = await apiGet('/api/work-orders?onlyOut=true');
 
   let rows = [];
   workOrders.forEach((wo) => wo.components.forEach((c) => rows.push({ wo, c })));
 
-  /* Filtering */
   const vendorFilter = document.getElementById('fVendor').value.trim().toLowerCase();
-  if (vendorFilter) rows = rows.filter((r) =>
-    r.wo.vendorName.toLowerCase().includes(vendorFilter)
-  );
+  if (vendorFilter) {
+    rows = rows.filter((r) =>
+      (r.wo.vendorName || '').toLowerCase().includes(vendorFilter)
+    );
+  }
 
-  /* Sorting */
   const sort = document.getElementById('fSort').value;
-  if (sort === 'daysDesc') rows.sort((a, b) => b.c.daysOut - a.c.daysOut);
-  if (sort === 'daysAsc') rows.sort((a, b) => a.c.daysOut - b.c.daysOut);
-  if (sort === 'vendor') rows.sort((a, b) => a.wo.vendorName.localeCompare(b.wo.vendorName));
-  if (sort === 'wo') rows.sort((a, b) => a.wo.woNumber.localeCompare(b.wo.woNumber));
+  if (sort === 'daysDesc') rows.sort((a, b) => (b.c.daysOut || 0) - (a.c.daysOut || 0));
+  if (sort === 'daysAsc') rows.sort((a, b) => (a.c.daysOut || 0) - (b.c.daysOut || 0));
+  if (sort === 'vendorAsc') rows.sort((a, b) => (a.wo.vendorName || '').localeCompare(b.wo.vendorName || ''));
+  if (sort === 'vendorDesc') rows.sort((a, b) => (b.wo.vendorName || '').localeCompare(a.wo.vendorName || ''));
+  if (sort === 'woAsc') rows.sort((a, b) => (a.wo.woNumber || '').localeCompare(b.wo.woNumber || ''));
+  if (sort === 'woDesc') rows.sort((a, b) => (b.wo.woNumber || '').localeCompare(a.wo.woNumber || ''));
+  if (sort === 'compAsc') rows.sort((a, b) => (a.c.description || '').localeCompare(b.c.description || ''));
+  if (sort === 'compDesc') rows.sort((a, b) => (b.c.description || '').localeCompare(a.c.description || ''));
 
   document.getElementById('statOutCount').textContent = rows.length;
   document.getElementById('statOverdue').textContent =
-    rows.filter((r) => r.c.daysOut >= threshold).length;
+    rows.filter((r) => (r.c.daysOut || 0) >= threshold).length;
 
   const listEl = document.getElementById('list');
 
@@ -272,36 +319,41 @@ async function loadOut() {
       </thead>
       <tbody>
         ${rows.map((r) => {
-          const safeDesc = JSON.stringify(escapeHtml(r.c.description));
+          const safeDesc = JSON.stringify(escapeHtml(r.c.description || ''));
           return `
             <tr>
               <td>
-                <input type="checkbox" class="out-select"
+                <input
+                  type="checkbox"
+                  class="out-select"
                   data-wo-id="${r.wo.id}"
                   data-comp-id="${r.c.id}"
-                  data-desc=${safeDesc} />
+                  data-desc=${safeDesc}
+                />
               </td>
-              <td>${escapeHtml(r.wo.vendorName) || '—'}</td>
+              <td>${escapeHtml(r.wo.vendorName || '—')}</td>
               <td>
                 <a class="link" href="/detail.html?id=${r.wo.id}">
-                  ${escapeHtml(r.wo.woNumber)} /
-                  ${escapeHtml(r.wo.poNumber)}
+                  ${escapeHtml(r.wo.woNumber || '(no WO#)')} /
+                  ${escapeHtml(r.wo.poNumber || '(no PO#)')}
                 </a>
               </td>
-              <td>${escapeHtml(r.c.description)}</td>
+              <td>${escapeHtml(r.c.description || '')}</td>
               <td>${fmtDate(r.c.sentDate)}</td>
               <td>
                 ${r.c.expectedReturnDate ? fmtDate(r.c.expectedReturnDate) : '—'}
                 ${r.c.isOverdueByExpected ? '<span class="badge red">past due</span>' : ''}
               </td>
               <td>
-                <span class="badge ${daysOutBadgeClass(r.c.daysOut, threshold)}">
-                  ${r.c.daysOut} day${r.c.daysOut === 1 ? '' : 's'}
+                <span class="badge ${daysOutBadgeClass(r.c.daysOut || 0, threshold)}">
+                  ${(r.c.daysOut || 0)} day${(r.c.daysOut || 0) === 1 ? '' : 's'}
                 </span>
               </td>
               <td>
-                <button class="small secondary"
-                  onclick="quickSignIn('${r.wo.id}','${r.c.id}',${safeDesc})">
+                <button
+                  class="small secondary"
+                  onclick="quickSignIn('${r.wo.id}','${r.c.id}',${safeDesc})"
+                >
                   Sign In
                 </button>
               </td>
@@ -312,9 +364,9 @@ async function loadOut() {
     </table>
   `;
 
-  document.querySelectorAll('.out-select').forEach((cb) =>
-    cb.addEventListener('change', updateOutSelectedCount)
-  );
+  document.querySelectorAll('.out-select').forEach((cb) => {
+    cb.addEventListener('change', updateOutSelectedCount);
+  });
   updateOutSelectedCount();
 
   document.getElementById('bulkSignInOutBtn').onclick = bulkSignInOut;
@@ -327,7 +379,10 @@ function updateOutSelectedCount() {
 
 async function bulkSignInOut() {
   const selected = Array.from(document.querySelectorAll('.out-select:checked'));
-  if (selected.length === 0) return toast('Select at least one component that is currently out.');
+  if (selected.length === 0) {
+    toast('Select at least one component that is currently out.');
+    return;
+  }
 
   const grouped = {};
   selected.forEach((cb) => {
@@ -335,7 +390,9 @@ async function bulkSignInOut() {
     const compId = cb.dataset.compId;
     const desc = cb.dataset.desc;
 
-    if (!grouped[woId]) grouped[woId] = { ids: [], descriptions: [] };
+    if (!grouped[woId]) {
+      grouped[woId] = { ids: [], descriptions: [] };
+    }
     grouped[woId].ids.push(compId);
     grouped[woId].descriptions.push(desc);
   });
@@ -352,10 +409,12 @@ async function bulkSignInOut() {
     const woId = woIds[i];
     const group = grouped[woId];
 
+    const items = group.descriptions.map((d) => JSON.parse(d));
+
     openSignatureModal({
       title: 'Sign In From Vendor',
       actionLabel: 'Confirm Return Signature',
-      items: group.descriptions,
+      items,
       onConfirm: async ({ signerName, signatureImage }) => {
         await apiPost(`/api/work-orders/${woId}/sign-in`, {
           componentIds: group.ids,
@@ -370,11 +429,16 @@ async function bulkSignInOut() {
   runForIndex(0);
 }
 
+/* -------------------------
+   Quick Sign Out / In
+------------------------- */
 function quickSignOut(woId, compId, description) {
+  const desc = JSON.parse(description);
+
   openSignatureModal({
     title: 'Sign Out to Vendor',
     actionLabel: 'Confirm Pickup Signature',
-    items: [description],
+    items: [desc],
     onConfirm: async ({ signerName, signatureImage }) => {
       await apiPost(`/api/work-orders/${woId}/sign-out`, {
         componentIds: [compId],
@@ -388,10 +452,12 @@ function quickSignOut(woId, compId, description) {
 }
 
 function quickSignIn(woId, compId, description) {
+  const desc = JSON.parse(description);
+
   openSignatureModal({
     title: 'Sign In From Vendor',
     actionLabel: 'Confirm Return Signature',
-    items: [description],
+    items: [desc],
     onConfirm: async ({ signerName, signatureImage }) => {
       await apiPost(`/api/work-orders/${woId}/sign-in`, {
         componentIds: [compId],
@@ -404,6 +470,10 @@ function quickSignIn(woId, compId, description) {
   });
 }
 
+/* -------------------------
+   Events
+------------------------- */
+document.getElementById('pendingVendor').addEventListener('input', loadPending);
 document.getElementById('pendingSort').addEventListener('change', loadPending);
 document.getElementById('fVendor').addEventListener('input', loadOut);
 document.getElementById('fSort').addEventListener('change', loadOut);
@@ -414,6 +484,7 @@ load();
 
 </body>
 </html>
+
 
 
 
