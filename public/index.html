@@ -35,11 +35,18 @@
 
     <div class="filters" style="margin-bottom:10px;">
       <div>
+        <label>Vendor</label>
+        <input id="pendingVendor" placeholder="Filter by vendor" />
+      </div>
+      <div>
         <label>Sort by</label>
         <select id="pendingSort">
-          <option value="vendor">Vendor</option>
+          <option value="vendorAsc">Vendor (A → Z)</option>
+          <option value="vendorDesc">Vendor (Z → A)</option>
           <option value="woAsc">Work Order (A → Z)</option>
           <option value="woDesc">Work Order (Z → A)</option>
+          <option value="compAsc">Component (A → Z)</option>
+          <option value="compDesc">Component (Z → A)</option>
         </select>
       </div>
     </div>
@@ -64,9 +71,12 @@
       <select id="fSort">
         <option value="daysDesc">Days out (longest first)</option>
         <option value="daysAsc">Days out (shortest first)</option>
-        <option value="vendor">Vendor</option>
+        <option value="vendorAsc">Vendor (A → Z)</option>
+        <option value="vendorDesc">Vendor (Z → A)</option>
         <option value="woAsc">Work Order (A → Z)</option>
         <option value="woDesc">Work Order (Z → A)</option>
+        <option value="compAsc">Component (A → Z)</option>
+        <option value="compDesc">Component (Z → A)</option>
       </select>
     </div>
     <div>
@@ -110,10 +120,20 @@ async function loadPending() {
   let rows = [];
   workOrders.forEach((wo) => wo.components.forEach((c) => rows.push({ wo, c })));
 
+  const vendorFilter = document.getElementById('pendingVendor').value.trim().toLowerCase();
+  if (vendorFilter) {
+    rows = rows.filter((r) =>
+      (r.wo.vendorName || '').toLowerCase().includes(vendorFilter)
+    );
+  }
+
   const sort = document.getElementById('pendingSort').value;
-  if (sort === 'vendor') rows.sort((a, b) => a.wo.vendorName.localeCompare(b.wo.vendorName));
-  if (sort === 'woAsc') rows.sort((a, b) => a.wo.woNumber.localeCompare(b.wo.woNumber));
-  if (sort === 'woDesc') rows.sort((a, b) => b.wo.woNumber.localeCompare(a.wo.woNumber));
+  if (sort === 'vendorAsc') rows.sort((a, b) => (a.wo.vendorName || '').localeCompare(b.wo.vendorName || ''));
+  if (sort === 'vendorDesc') rows.sort((a, b) => (b.wo.vendorName || '').localeCompare(a.wo.vendorName || ''));
+  if (sort === 'woAsc') rows.sort((a, b) => (a.wo.woNumber || '').localeCompare(b.wo.woNumber || ''));
+  if (sort === 'woDesc') rows.sort((a, b) => (b.wo.woNumber || '').localeCompare(a.wo.woNumber || ''));
+  if (sort === 'compAsc') rows.sort((a, b) => (a.c.description || '').localeCompare(b.c.description || ''));
+  if (sort === 'compDesc') rows.sort((a, b) => (b.c.description || '').localeCompare(a.c.description || ''));
 
   document.getElementById('statPendingCount').textContent = rows.length;
   const el = document.getElementById('pendingList');
@@ -137,7 +157,7 @@ async function loadPending() {
       </thead>
       <tbody>
         ${rows.map((r) => {
-          const desc = escapeHtml(r.c.description);
+          const desc = escapeHtml(r.c.description || '');
           return `
             <tr>
               <td>
@@ -149,11 +169,11 @@ async function loadPending() {
                   data-desc="${desc}"
                 />
               </td>
-              <td>${escapeHtml(r.wo.vendorName)}</td>
+              <td>${escapeHtml(r.wo.vendorName || '—')}</td>
               <td>
                 <a class="link" href="/detail.html?id=${r.wo.id}">
-                  ${escapeHtml(r.wo.woNumber)} /
-                  ${escapeHtml(r.wo.poNumber)}
+                  ${escapeHtml(r.wo.woNumber || '(no WO#)')} /
+                  ${escapeHtml(r.wo.poNumber || '(no PO#)')}
                 </a>
               </td>
               <td>${desc}</td>
@@ -247,20 +267,23 @@ async function loadOut() {
   const vendorFilter = document.getElementById('fVendor').value.trim().toLowerCase();
   if (vendorFilter) {
     rows = rows.filter((r) =>
-      r.wo.vendorName.toLowerCase().includes(vendorFilter)
+      (r.wo.vendorName || '').toLowerCase().includes(vendorFilter)
     );
   }
 
   const sort = document.getElementById('fSort').value;
-  if (sort === 'daysDesc') rows.sort((a, b) => b.c.daysOut - a.c.daysOut);
-  if (sort === 'daysAsc') rows.sort((a, b) => a.c.daysOut - b.c.daysOut);
-  if (sort === 'vendor') rows.sort((a, b) => a.wo.vendorName.localeCompare(b.wo.vendorName));
-  if (sort === 'woAsc') rows.sort((a, b) => a.wo.woNumber.localeCompare(b.wo.woNumber));
-  if (sort === 'woDesc') rows.sort((a, b) => b.wo.woNumber.localeCompare(a.wo.woNumber));
+  if (sort === 'daysDesc') rows.sort((a, b) => (b.c.daysOut || 0) - (a.c.daysOut || 0));
+  if (sort === 'daysAsc') rows.sort((a, b) => (a.c.daysOut || 0) - (b.c.daysOut || 0));
+  if (sort === 'vendorAsc') rows.sort((a, b) => (a.wo.vendorName || '').localeCompare(b.wo.vendorName || ''));
+  if (sort === 'vendorDesc') rows.sort((a, b) => (b.wo.vendorName || '').localeCompare(a.wo.vendorName || ''));
+  if (sort === 'woAsc') rows.sort((a, b) => (a.wo.woNumber || '').localeCompare(b.wo.woNumber || ''));
+  if (sort === 'woDesc') rows.sort((a, b) => (b.wo.woNumber || '').localeCompare(a.wo.woNumber || ''));
+  if (sort === 'compAsc') rows.sort((a, b) => (a.c.description || '').localeCompare(b.c.description || ''));
+  if (sort === 'compDesc') rows.sort((a, b) => (b.c.description || '').localeCompare(a.c.description || ''));
 
   document.getElementById('statOutCount').textContent = rows.length;
   document.getElementById('statOverdue').textContent =
-    rows.filter((r) => r.c.daysOut >= threshold).length;
+    rows.filter((r) => (r.c.daysOut || 0) >= threshold).length;
 
   const listEl = document.getElementById('list');
 
@@ -285,7 +308,7 @@ async function loadOut() {
       </thead>
       <tbody>
         ${rows.map((r) => {
-          const desc = escapeHtml(r.c.description);
+          const desc = escapeHtml(r.c.description || '');
           return `
             <tr>
               <td>
@@ -297,11 +320,11 @@ async function loadOut() {
                   data-desc="${desc}"
                 />
               </td>
-              <td>${escapeHtml(r.wo.vendorName)}</td>
+              <td>${escapeHtml(r.wo.vendorName || '—')}</td>
               <td>
                 <a class="link" href="/detail.html?id=${r.wo.id}">
-                  ${escapeHtml(r.wo.woNumber)} /
-                  ${escapeHtml(r.wo.poNumber)}
+                  ${escapeHtml(r.wo.woNumber || '(no WO#)')} /
+                  ${escapeHtml(r.wo.poNumber || '(no PO#)')}
                 </a>
               </td>
               <td>${desc}</td>
@@ -311,8 +334,8 @@ async function loadOut() {
                 ${r.c.isOverdueByExpected ? '<span class="badge red">past due</span>' : ''}
               </td>
               <td>
-                <span class="badge ${daysOutBadgeClass(r.c.daysOut, threshold)}">
-                  ${r.c.daysOut} day${r.c.daysOut === 1 ? '' : 's'}
+                <span class="badge ${daysOutBadgeClass(r.c.daysOut || 0, threshold)}">
+                  ${(r.c.daysOut || 0)} day${(r.c.daysOut || 0) === 1 ? '' : 's'}
                 </span>
               </td>
               <td>
@@ -433,6 +456,7 @@ function quickSignIn(woId, compId, description) {
 /* -------------------------
    Events
 ------------------------- */
+document.getElementById('pendingVendor').addEventListener('input', loadPending);
 document.getElementById('pendingSort').addEventListener('change', loadPending);
 document.getElementById('fVendor').addEventListener('input', loadOut);
 document.getElementById('fSort').addEventListener('change', loadOut);
@@ -443,6 +467,7 @@ load();
 
 </body>
 </html>
+
 
 
 
