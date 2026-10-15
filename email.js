@@ -71,7 +71,7 @@ async function runAlertCheck({ force = false } = {}) {
   return { sent: true, count: overdue.length };
 }
 
-// Send pickup/return receipt email with PDF attachment
+// Send the pickup/return receipt email with PDF attachment
 async function sendReceiptEmail(wo, event) {
   const settings = await db.getSettings();
   if (!settings.emailRecipients || settings.emailRecipients.length === 0) {
